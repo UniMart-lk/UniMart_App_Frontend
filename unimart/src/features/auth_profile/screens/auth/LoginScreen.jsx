@@ -9,11 +9,13 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import authService from '@/services/authService';
 
 export default function LoginScreen({ navigation } = {}) {
   const insets = useSafeAreaInsets();
@@ -24,6 +26,8 @@ export default function LoginScreen({ navigation } = {}) {
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleBack = () => {
     if (navigation?.goBack) {
@@ -37,9 +41,45 @@ export default function LoginScreen({ navigation } = {}) {
     }
   };
 
-  const handleSignIn = () => {
-    // Authentication handler
-    console.log('Signing in with:', email, password);
+  const handleSignIn = async () => {
+    const trimmedEmail = email.trim();
+
+    // 1. Client-side input validation
+    if (!trimmedEmail) {
+      setErrorMessage('Please enter your email address.');
+      return;
+    }
+    if (!password) {
+      setErrorMessage('Please enter your password.');
+      return;
+    }
+
+    setErrorMessage('');
+    setLoading(true);
+
+    try {
+      // 2. Call authService API
+      const result = await authService.login(trimmedEmail, password);
+      console.log('Login successful! Logged in user:', result.user?.email);
+
+      // 3. Navigate to Main/Home screen
+      if (navigation?.replace) {
+        navigation.replace('Home');
+      } else if (navigation?.navigate) {
+        navigation.navigate('Home');
+      } else {
+        try {
+          router.replace('/home');
+        } catch {
+          router.push('/home');
+        }
+      }
+    } catch (error) {
+      console.error('Sign-in error:', error.message);
+      setErrorMessage(error.message || 'Invalid email or password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreateAccount = () => {
@@ -84,7 +124,7 @@ export default function LoginScreen({ navigation } = {}) {
 
         <Text style={styles.headerTitle}>Welcome back</Text>
 
-        {/* Empty placeholder to center headerTitle */}
+        {/* Empty placeholder to balance center title */}
         <View style={styles.headerRightPlaceholder} />
       </View>
 
@@ -114,18 +154,30 @@ export default function LoginScreen({ navigation } = {}) {
 
           {/* Form Fields */}
           <View style={styles.form}>
+            {/* Error Banner */}
+            {errorMessage ? (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle" size={18} color="#DC2626" style={{ marginRight: 8 }} />
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             {/* Email Field */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email address</Text>
               <TextInput
                 style={[styles.input, emailFocused && styles.inputFocused]}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (errorMessage) setErrorMessage('');
+                }}
                 placeholder=""
                 placeholderTextColor="#94A3B8"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                editable={!loading}
                 onFocus={() => setEmailFocused(true)}
                 onBlur={() => setEmailFocused(false)}
               />
@@ -138,11 +190,15 @@ export default function LoginScreen({ navigation } = {}) {
                 <TextInput
                   style={styles.passwordInput}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (errorMessage) setErrorMessage('');
+                  }}
                   placeholder=""
                   placeholderTextColor="#94A3B8"
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
+                  editable={!loading}
                   onFocus={() => setPasswordFocused(true)}
                   onBlur={() => setPasswordFocused(false)}
                 />
@@ -168,30 +224,34 @@ export default function LoginScreen({ navigation } = {}) {
               style={styles.forgotPasswordContainer}
               onPress={handleForgotPassword}
               activeOpacity={0.7}
+              disabled={loading}
             >
               <Text style={styles.forgotPasswordText}>Forgot password?</Text>
             </TouchableOpacity>
 
             {/* Sign in Button */}
             <TouchableOpacity
-              style={styles.signInButton}
+              style={[styles.signInButton, loading && styles.signInButtonDisabled]}
               onPress={handleSignIn}
+              disabled={loading}
               activeOpacity={0.85}
               accessibilityRole="button"
               accessibilityLabel="Sign in"
             >
-              <Text style={styles.signInButtonText}>Sign in</Text>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.signInButtonText}>Sign in</Text>
+              )}
             </TouchableOpacity>
 
             {/* New to UniMart? Create account */}
             <View style={styles.signupPrompt}>
               <Text style={styles.signupPromptText}>New to UniMart? </Text>
-              <TouchableOpacity onPress={handleCreateAccount} activeOpacity={0.7}>
+              <TouchableOpacity onPress={handleCreateAccount} activeOpacity={0.7} disabled={loading}>
                 <Text style={styles.signupPromptLink}>Create account</Text>
               </TouchableOpacity>
             </View>
-
- 
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -279,6 +339,23 @@ const styles = StyleSheet.create({
   form: {
     width: '100%',
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+  },
   inputGroup: {
     marginBottom: 18,
   },
@@ -344,6 +421,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  signInButtonDisabled: {
+    opacity: 0.7,
+  },
   signInButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -365,17 +445,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#2563EB',
-  },
-  noticeBox: {
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
-    padding: 16,
-  },
-  noticeText: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#94A3B8',
   },
 });
