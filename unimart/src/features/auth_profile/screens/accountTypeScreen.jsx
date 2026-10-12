@@ -61,7 +61,7 @@ export default function AccountTypeScreen({ onSelectType } = {}) {
       {/* Header: Logo + Title + Subtitle */}
       <View style={styles.header}>
         <Image
-          source={require('../../../../assets/images/onboarding/welcome1.png')}
+          source={require('../../../../assets/images/login/logo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
