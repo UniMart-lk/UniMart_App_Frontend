@@ -7,7 +7,7 @@ import { getToken } from './storage';
  * - Android Emulator: http://10.0.2.2:5000/api
  * - iOS Simulator / Web: http://localhost:5000/api
  */
-export const BACKEND_IP = '172.20.10.3';
+export const BACKEND_IP = '192.168.8.244';
 export const BACKEND_PORT = '5000';
 
 let customBaseUrl = null;
