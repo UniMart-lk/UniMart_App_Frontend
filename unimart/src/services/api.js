@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { getToken } from './storage';
 
 /**
@@ -7,7 +8,7 @@ import { getToken } from './storage';
  * - Android Emulator: http://10.0.2.2:5000/api
  * - iOS Simulator / Web: http://localhost:5000/api
  */
-export const BACKEND_IP = '192.168.8.244';
+export const BACKEND_IP = '172.20.10.3';
 export const BACKEND_PORT = '5000';
 
 let customBaseUrl = null;
@@ -25,8 +26,16 @@ export function getBaseUrl() {
     return `http://localhost:${BACKEND_PORT}/api`;
   }
 
-  // Use the physical device IP provided (works for Expo Go on LAN)
-  return `http://${BACKEND_IP}:${BACKEND_PORT}/api`;
+  // Automatically determine the host IP from Expo Go (if available)
+  const debuggerHost =
+    Constants.expoConfig?.hostUri ||
+    Constants.manifest2?.extra?.expoGo?.debuggerHost ||
+    Constants.manifest?.debuggerHost;
+
+  const autoIp = debuggerHost ? debuggerHost.split(':')[0] : null;
+  const ip = autoIp || BACKEND_IP;
+
+  return `http://${ip}:${BACKEND_PORT}/api`;
 }
 
 /**
