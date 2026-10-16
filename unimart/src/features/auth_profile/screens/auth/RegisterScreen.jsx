@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -58,6 +58,46 @@ export default function RegisterScreen({ navigation } = {}) {
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // Password Health / Strength evaluation
+  const passwordStrength = useMemo(() => {
+    if (!password) {
+      return { score: 0, label: '', color: '#E2E8F0' };
+    }
+
+    const len = password.length;
+    const hasLower = /[a-z]/.test(password);
+    const hasUpper = /[A-Z]/.test(password);
+    const hasDigit = /[0-9]/.test(password);
+    const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+    let varietyCount = 0;
+    if (hasLower) varietyCount++;
+    if (hasUpper) varietyCount++;
+    if (hasDigit) varietyCount++;
+    if (hasSpecial) varietyCount++;
+
+    if (len < 6 || varietyCount <= 1) {
+      return { score: 1, label: 'Weak', color: '#EF4444' };
+    }
+
+    if (len >= 8 && varietyCount >= 3) {
+      return { score: 3, label: 'Strong', color: '#10B981' };
+    }
+
+    return { score: 2, label: 'Medium', color: '#F59E0B' };
+  }, [password]);
+
+  // Dynamic Password Requirement Checklist
+  const passwordCriteria = useMemo(() => {
+    return {
+      hasLength: password.length >= 8,
+      hasUpper: /[A-Z]/.test(password),
+      hasLower: /[a-z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      hasSpecial: /[^A-Za-z0-9]/.test(password),
+    };
+  }, [password]);
 
   // Navigation handlers
   const handleBack = () => {
@@ -422,6 +462,125 @@ export default function RegisterScreen({ navigation } = {}) {
                       />
                     </TouchableOpacity>
                   </View>
+
+                  {/* Password Health / Strength Bar */}
+                  {password.length > 0 && (
+                    <View style={styles.strengthContainer}>
+                      <View style={styles.strengthBarsRow}>
+                        <View
+                          style={[
+                            styles.strengthBar,
+                            {
+                              backgroundColor:
+                                passwordStrength.score >= 1 ? passwordStrength.color : '#E2E8F0',
+                            },
+                          ]}
+                        />
+                        <View
+                          style={[
+                            styles.strengthBar,
+                            {
+                              backgroundColor:
+                                passwordStrength.score >= 2 ? passwordStrength.color : '#E2E8F0',
+                            },
+                          ]}
+                        />
+                        <View
+                          style={[
+                            styles.strengthBar,
+                            styles.strengthBarLast,
+                            {
+                              backgroundColor:
+                                passwordStrength.score >= 3 ? passwordStrength.color : '#E2E8F0',
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.strengthLabel}>{passwordStrength.label}</Text>
+                    </View>
+                  )}
+
+                  {/* Dynamic Password Requirement Checklist Hints */}
+                  {(focusedField === 'password' || password.length > 0) && (
+                    <View style={styles.criteriaContainer}>
+                      <Text style={styles.criteriaHeading}>Password must contain:</Text>
+                      <View style={styles.criteriaList}>
+                        <View style={styles.criteriaItem}>
+                          <Ionicons
+                            name={passwordCriteria.hasLength ? 'checkmark-circle' : 'ellipse-outline'}
+                            size={15}
+                            color={passwordCriteria.hasLength ? '#10B981' : '#94A3B8'}
+                          />
+                          <Text
+                            style={[
+                              styles.criteriaText,
+                              passwordCriteria.hasLength && styles.criteriaTextMet,
+                            ]}
+                          >
+                            At least 8 characters
+                          </Text>
+                        </View>
+
+                        <View style={styles.criteriaItem}>
+                          <Ionicons
+                            name={
+                              passwordCriteria.hasUpper && passwordCriteria.hasLower
+                                ? 'checkmark-circle'
+                                : 'ellipse-outline'
+                            }
+                            size={15}
+                            color={
+                              passwordCriteria.hasUpper && passwordCriteria.hasLower
+                                ? '#10B981'
+                                : '#94A3B8'
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.criteriaText,
+                              passwordCriteria.hasUpper &&
+                                passwordCriteria.hasLower &&
+                                styles.criteriaTextMet,
+                            ]}
+                          >
+                            Uppercase & lowercase letters (A-Z, a-z)
+                          </Text>
+                        </View>
+
+                        <View style={styles.criteriaItem}>
+                          <Ionicons
+                            name={passwordCriteria.hasNumber ? 'checkmark-circle' : 'ellipse-outline'}
+                            size={15}
+                            color={passwordCriteria.hasNumber ? '#10B981' : '#94A3B8'}
+                          />
+                          <Text
+                            style={[
+                              styles.criteriaText,
+                              passwordCriteria.hasNumber && styles.criteriaTextMet,
+                            ]}
+                          >
+                            At least one number (0-9)
+                          </Text>
+                        </View>
+
+                        <View style={styles.criteriaItem}>
+                          <Ionicons
+                            name={passwordCriteria.hasSpecial ? 'checkmark-circle' : 'ellipse-outline'}
+                            size={15}
+                            color={passwordCriteria.hasSpecial ? '#10B981' : '#94A3B8'}
+                          />
+                          <Text
+                            style={[
+                              styles.criteriaText,
+                              passwordCriteria.hasSpecial && styles.criteriaTextMet,
+                            ]}
+                          >
+                            At least one symbol (e.g. !@#$%)
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
                 </View>
 
                 {/* Confirm password */}
@@ -1039,6 +1198,71 @@ const styles = StyleSheet.create({
   },
   inputFocused: {
     borderColor: '#2563EB',
+  },
+  // Password Strength Bar Styles
+  strengthContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 2,
+  },
+  strengthBarsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  strengthBar: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E2E8F0',
+    marginRight: 6,
+  },
+  strengthBarLast: {
+    marginRight: 0,
+  },
+  strengthLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#64748B',
+    minWidth: 48,
+    textAlign: 'right',
+  },
+  // Password Criteria Hint Styles
+  criteriaContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  criteriaHeading: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: 6,
+  },
+  criteriaList: {
+    gap: 4,
+  },
+  criteriaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  criteriaText: {
+    fontSize: 12,
+    color: '#64748B',
+    marginLeft: 8,
+    fontWeight: '400',
+  },
+  criteriaTextMet: {
+    color: '#0F172A',
+    fontWeight: '600',
   },
   dropdownSelector: {
     height: 52,
