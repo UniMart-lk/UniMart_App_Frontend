@@ -50,6 +50,33 @@ export const authService = {
   },
 
   /**
+   * Register a new user (Buyer/Renter or Provider)
+   * @param {object} payload - { email, password, contactNumber, role, providerType, verificationData }
+   * @returns {Promise<{ token: string, user: object }>}
+   */
+  async register(payload) {
+    const trimmedEmail = payload?.email?.trim();
+    const password = payload?.password;
+
+    if (!trimmedEmail || !password) {
+      throw new Error('Please enter both email and password.');
+    }
+
+    const response = await apiRequest('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...payload,
+        email: trimmedEmail,
+      }),
+    });
+
+    const token = response?.data?.token;
+    const user = response?.data?.user;
+
+    return { token, user, message: response?.message };
+  },
+
+  /**
    * Fetch current authenticated user profile
    * @returns {Promise<object>}
    */
