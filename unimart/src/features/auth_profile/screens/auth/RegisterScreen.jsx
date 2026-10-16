@@ -15,6 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import authService from '@/services/authService';
 
 export default function RegisterScreen({ navigation } = {}) {
   const insets = useSafeAreaInsets();
@@ -185,8 +186,8 @@ export default function RegisterScreen({ navigation } = {}) {
     return true;
   };
 
-  // Primary action button handler
-  const handlePrimaryAction = () => {
+  // Primary action button handler with Backend API Integration
+  const handlePrimaryAction = async () => {
     if (step === 1) {
       if (!validateBasicForm()) return;
 
@@ -195,21 +196,61 @@ export default function RegisterScreen({ navigation } = {}) {
         setErrorMessage('');
         setStep(2);
       } else {
-        // Buyer & renter account creation complete
+        // Buyer & renter account creation via backend
         setLoading(true);
-        setTimeout(() => {
-          setLoading(false);
+        setErrorMessage('');
+        try {
+          await authService.register({
+            email: email.trim(),
+            password: password,
+            contactNumber: contactNumber.trim(),
+            role: 'USER',
+          });
           setShowSuccessModal(true);
-        }, 600);
+        } catch (error) {
+          setErrorMessage(error.message || 'Registration failed. Please try again.');
+        } finally {
+          setLoading(false);
+        }
       }
     } else if (step === 2) {
       if (!validateVerificationForm()) return;
 
       setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
+      setErrorMessage('');
+
+      try {
+        const isStudent = providerType === 'Student Provider';
+        const verificationData = isStudent
+          ? {
+              fullName: studentFullName.trim(),
+              universityEmail: universityEmail.trim(),
+              studentId: studentId.trim(),
+              faculty: faculty.trim(),
+            }
+          : {
+              fullName: externalFullName.trim(),
+              businessName: businessName.trim(),
+              businessContact: businessContact.trim(),
+              identificationNumber: identificationNumber.trim(),
+              businessAddress: businessAddress.trim(),
+            };
+
+        await authService.register({
+          email: email.trim(),
+          password: password,
+          contactNumber: contactNumber.trim(),
+          role: 'PROVIDER',
+          providerType: providerType,
+          verificationData: verificationData,
+        });
+
         setShowSuccessModal(true);
-      }, 700);
+      } catch (error) {
+        setErrorMessage(error.message || 'Verification submission failed. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -632,7 +673,7 @@ export default function RegisterScreen({ navigation } = {}) {
                       />
                     </View>
 
-                    {/* Business Name (Optional/Personal) */}
+                    {/* Business Name */}
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Business / Store name</Text>
                       <TextInput
