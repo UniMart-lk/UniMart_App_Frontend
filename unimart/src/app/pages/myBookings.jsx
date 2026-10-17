@@ -161,12 +161,9 @@ export default function MyListings({
               style={[
                 styles.badge,
                 item.status === "Sold" && styles.soldBadge,
-                item.status === "Drafts" && styles.draftBadge,
-              ]}
-            >
+                item.status === "Drafts" && styles.draftBadge,]}>
               <Text style={styles.badgeText}>{statusLabel}</Text>
             </View>
-
             <Text style={styles.listedDate}>{item.listed}</Text>
           </View>
 
@@ -178,23 +175,14 @@ export default function MyListings({
               setExpandedId(expanded ? null : item.id)
             }
             style={styles.moreButton}
-            hitSlop={8}
-          >
-            <Ionicons
-              name="ellipsis-horizontal"
-              size={22}
-              color={COLORS.text}
-            />
+            hitSlop={8}>
+            <Ionicons name="ellipsis-horizontal" size={22} color={COLORS.text}/>
           </TouchableOpacity>
         </View>
 
         {expanded && (
           <View style={styles.actions}>
-            <ActionButton
-              icon="pencil"
-              label="Edit Listing"
-              onPress={() => handleEdit(item)}
-            />
+            <ActionButton icon="pencil" label="Edit Listing" onPress={() => handleEdit(item)}/>
 
             <ActionButton
               icon="pricetag"
@@ -205,16 +193,9 @@ export default function MyListings({
                     ? "Publish"
                     : "Relist"
               }
-              onPress={() => changeStatus(item)}
-              bordered
-            />
+              onPress={() => changeStatus(item)} bordered/>
 
-            <ActionButton
-              icon="trash"
-              label="Delete"
-              color={COLORS.red}
-              onPress={() => handleDelete(item)}
-            />
+            <ActionButton icon="trash" color={COLORS.red} onPress={() => handleDelete(item)}/>
           </View>
         )}
       </View>
@@ -223,10 +204,7 @@ export default function MyListings({
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={COLORS.surface}
-      />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.surface}/>
 
       <View style={styles.header}>
         <TouchableOpacity
@@ -236,19 +214,13 @@ export default function MyListings({
           onPress={() => {
             if (onBack) return onBack();
             Alert.alert("Back", "Connect this button to your navigation.");
-          }}
-        >
+          }}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>My Listings</Text>
 
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Add listing"
-          style={styles.headerButton}
-          onPress={handleAdd}
-        >
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Add listing" style={styles.headerButton} onPress={handleAdd}>
           <Ionicons name="add" size={26} color={COLORS.text} />
         </TouchableOpacity>
       </View>
