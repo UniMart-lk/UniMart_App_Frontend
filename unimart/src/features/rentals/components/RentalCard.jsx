@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 
@@ -87,9 +87,14 @@ export default function RentalCard({ item }) {
   // Unique per rental so a recycled card never flashes the previous rental's image
   const imageRecyclingKey = item?.id != null ? String(item.id) : imageUrl;
 
+  // Remember WHICH url failed (not just "failed"), so a recycled card showing a
+  // different rental never inherits the previous rental's error
+  const [failedImageUrl, setFailedImageUrl] = useState(null);
+  const showImage = imageUrl !== null && imageUrl !== failedImageUrl;
+
   return (
     <View style={styles.card}>
-      {imageUrl ? (
+      {showImage ? (
         <Image
           source={{ uri: imageUrl }}
           style={styles.image}
@@ -97,8 +102,13 @@ export default function RentalCard({ item }) {
           cachePolicy="memory-disk"
           transition={200}
           recyclingKey={imageRecyclingKey}
+          onError={() => setFailedImageUrl(imageUrl)}
         />
-      ) : null}
+      ) : (
+        <View style={[styles.image, styles.imagePlaceholder]}>
+          <Text style={styles.imagePlaceholderText}>No image available</Text>
+        </View>
+      )}
 
       <View style={styles.content}>
         <Text style={styles.title} numberOfLines={2}>
@@ -145,6 +155,16 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: 160,
+  },
+  imagePlaceholder: {
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imagePlaceholderText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#94A3B8',
   },
   content: {
     paddingVertical: 14,
