@@ -1,7 +1,8 @@
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import React from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
+import { Ionicons } from '@expo/vector-icons';
 
 export default function MarketPlaceHomeScreen() {
   return (
@@ -10,7 +11,12 @@ export default function MarketPlaceHomeScreen() {
 
        {/* 1. HEADER */}
       <View style={styles.header}>
-        <Text>header</Text>
+       <TouchableOpacity>
+        <Ionicons name='arrow-back' size={24} />
+       </TouchableOpacity>
+        <View>
+          <Text style={{fontSize: 24}}>Header</Text>
+        </View>
       </View>
 
        {/* 2. SEARCH & CATEGORIES */}
@@ -55,8 +61,12 @@ const styles = StyleSheet.create({
   },
 
   header:{
-    flex: 1,
-    backgroundColor: '#ffffff'
+    flex: 0.5,
+    backgroundColor: '#ffffff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth:1,
+    borderColor:'red'
   },
 
   searchBarContainer:{
