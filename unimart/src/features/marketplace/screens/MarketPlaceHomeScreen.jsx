@@ -3,8 +3,13 @@ import React from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons } from '@expo/vector-icons';
+import { ScrollView } from 'react-native';
 
 export default function MarketPlaceHomeScreen() {
+
+  // --- MOCK DATA ---
+const categories= ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
+
   return (
    <SafeAreaView style={styles.safeArea}>
       <StatusBar style="auto" />
@@ -19,7 +24,7 @@ export default function MarketPlaceHomeScreen() {
          <Text style={{fontSize: 20, fontWeight:'bold', color: '#0F172A' }}>Marketplace</Text>
         </View>
 
-        <View style={{width: 30, borderWidth:1, borderColor:'#ffffff'}}></View>
+        <View style={{width: 25, borderWidth:1, borderColor:'#ffffff'}}></View>
 
       </View>
 
@@ -36,9 +41,14 @@ export default function MarketPlaceHomeScreen() {
       </View>
 
       {/* Category Chips */}
-       <View style={styles.categoryChipsConatiner}>
-        <Text>Category Chips</Text>
-      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipContainer}>
+        {categories.map ((cat) =>(
+          <TouchableOpacity 
+              key={cat} >
+            <Text style={styles.chipText}>{cat}</Text>      
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
        {/* Results & Sort */}
       <View style={styles.resultsAndSortContainer}>
@@ -79,14 +89,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderBottomWidth: 1,
     borderColor:'#E2E8F0',
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
   },
 
   searchBarContainer:{
     flexDirection: 'row',
     flex: 1,
     marginVertical: 8,
-    marginHorizontal: 20,
+    marginHorizontal: 15,
     borderWidth: 1,
     borderColor:'#E2E8F0',
     backgroundColor: '#ffffff',
@@ -94,7 +104,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderRadius: 12,
     paddingHorizontal: 15,
-    paddingVertical: 5
   },
 
   placeholderContainer:{
@@ -106,13 +115,28 @@ const styles = StyleSheet.create({
   },
 
   placeholder:{
-      fontSize: 14, 
-      width:'80%', 
+      fontSize: 15, 
+      width:'83%', 
   },
 
-  categoryChipsConatiner:{
-    flex:1
+  chipScroll: { 
+    borderWidth: 1,
+    borderColor:'red',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    
+  },
 
+  chipContainer: { 
+    borderWidth: 1,
+    borderColor:'blue',
+    gap: 8, 
+    paddingRight: 20
+  },
+
+  chipText: { 
+    fontSize: 15, 
+    color: '#0F172A' 
   },
 
   resultsAndSortContainer:{
