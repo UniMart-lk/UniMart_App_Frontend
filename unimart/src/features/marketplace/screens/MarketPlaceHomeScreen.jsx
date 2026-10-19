@@ -14,18 +14,20 @@ export default function MarketPlaceHomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex:1,
-    borderWidth: 1,
-    borderColor: 'red',
     backgroundColor: 'black',
   },
+
   headerContainer:{
+    marginTop: 35,
     flex:1,
     backgroundColor: '#FFFFFF',
   },
+
   bodyContainer:{
     flex:1,
     backgroundColor: '#FFFFFF',
   }, 
+
   bottomNavConatiner: {
     flex:1,
     backgroundColor: '#FFFFFF',
