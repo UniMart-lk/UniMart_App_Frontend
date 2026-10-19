@@ -84,11 +84,20 @@ export default function RentalCard({ item }) {
   const pickupLocation = typeof rawLocation === 'string' ? rawLocation.trim() : '';
 
   const imageUrl = getValidImageUrl(item?.primaryImageUrl);
+  // Unique per rental so a recycled card never flashes the previous rental's image
+  const imageRecyclingKey = item?.id != null ? String(item.id) : imageUrl;
 
   return (
     <View style={styles.card}>
       {imageUrl ? (
-        <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.image}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={200}
+          recyclingKey={imageRecyclingKey}
+        />
       ) : null}
 
       <View style={styles.content}>
