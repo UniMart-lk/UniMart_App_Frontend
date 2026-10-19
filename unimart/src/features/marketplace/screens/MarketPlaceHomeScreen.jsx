@@ -9,6 +9,7 @@ export default function MarketPlaceHomeScreen() {
 
   // --- MOCK DATA ---
 const categories= ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
+const [activeCategory, setActiveCategory] = React.useState('All');
 
   return (
    <SafeAreaView style={styles.safeArea}>
@@ -44,8 +45,9 @@ const categories= ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipContainer}>
         {categories.map ((cat) =>(
           <TouchableOpacity 
-              key={cat} style={styles.chip} >
-            <Text style={styles.chipText}>{cat}</Text>      
+              key={cat} style={[styles.chip, activeCategory === cat && styles.chipActive]} 
+              onPress={() =>setActiveCategory(cat)}>
+            <Text style={[styles.chipText, activeCategory === cat && styles.chipTextActive]}>{cat}</Text>      
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -120,8 +122,6 @@ const styles = StyleSheet.create({
   },
 
   chipScroll: { 
-    borderWidth: 1,
-    borderColor:'#F8FAFC',
     marginHorizontal: 15,
     marginBottom: 15,
     flexGrow: 0
@@ -129,12 +129,12 @@ const styles = StyleSheet.create({
   },
 
   chipContainer: { 
-    gap: 8, 
+    gap: 8
   },
 
   chip:{
     paddingVertical: 8,
-    paddingHorizontal:16,
+    paddingHorizontal:15,
     borderRadius: 15,
     backgroundColor: '#FFFFFF',
     borderWidth:1,
@@ -145,6 +145,15 @@ const styles = StyleSheet.create({
     fontSize: 15, 
     color: '#0F172A' 
   },
+
+  chipActive: { 
+    backgroundColor: '#2563EB', 
+    borderColor: '#2563EB' 
+  },
+
+  chipTextActive: { 
+    color: '#FFFFFF', 
+    fontWeight: '500' },
 
   resultsAndSortContainer:{
     flex:1
