@@ -5,3 +5,5 @@ import MarketPlaceHomeScreen from '@/features/marketplace/screens/MarketPlaceHom
 export default function Index() {
   return <MarketPlaceHomeScreen />
 }
+
+
