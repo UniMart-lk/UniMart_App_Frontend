@@ -12,11 +12,11 @@ export default function MarketPlaceHomeScreen() {
        {/* 1. HEADER */}
       <View style={styles.header}>                        {/* borderWidth:1, borderColor:'red'*/ } 
         <TouchableOpacity>
-          <Ionicons name='arrow-back' size={30} color="#0F172A" />
+          <Ionicons name='arrow-back' size={25} color="#0F172A" />
         </TouchableOpacity>
        
         <View>
-         <Text style={{fontSize: 24, fontWeight:'bold', color: '#0F172A' }}>Marketplace</Text>
+         <Text style={{fontSize: 20, fontWeight:'bold', color: '#0F172A' }}>Marketplace</Text>
         </View>
 
         <View style={{width: 30, borderWidth:1, borderColor:'#ffffff'}}></View>
@@ -26,8 +26,8 @@ export default function MarketPlaceHomeScreen() {
        {/* 2. SEARCH & CATEGORIES */}
       <View style={styles.searchBarContainer}>
         <View style={styles.placeholderContainer}>
-          <Ionicons name='search-outline' size={24} color="#0F172A8D" />
-          <TextInput placeholder="Search Products..." style={{fontSize: 15, width:'85%'}} />
+          <Ionicons name='search-outline' size={20} color="#0F172A8D" />
+          <TextInput placeholder="Search Products..." style={styles.placeholder} />
         </View>
 
         <TouchableOpacity>
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   },
 
   header:{
-    flex: 1.5,
+    flex: 1.4,
     backgroundColor: '#ffffff',
     flexDirection: 'row',
     alignItems: 'center',
@@ -92,16 +92,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    borderRadius: 12,
+    paddingHorizontal: 15,
     paddingVertical: 5
   },
 
   placeholderContainer:{
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10
+    gap: 10,
+    color:"#0F172A8D"
+    
+  },
+
+  placeholder:{
+      fontSize: 14, 
+      width:'80%', 
   },
 
   categoryChipsConatiner:{
