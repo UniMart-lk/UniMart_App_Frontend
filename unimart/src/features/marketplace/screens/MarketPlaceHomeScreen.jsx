@@ -18,7 +18,6 @@ const styles = StyleSheet.create({
   },
 
   headerContainer:{
-    marginTop: 35,
     flex:1,
     backgroundColor: '#FFFFFF',
   },
