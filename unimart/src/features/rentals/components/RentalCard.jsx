@@ -9,6 +9,36 @@ const PERIOD_LABELS = {
   MONTHLY: 'month',
 };
 
+// Backend sends Prisma VehicleType enum values
+const VEHICLE_TYPE_LABELS = {
+  MOTORCYCLE: 'Motorcycle',
+  CAR: 'Car',
+  THREE_WHEELER: 'Three-wheeler',
+  BICYCLE: 'Bicycle',
+};
+
+/**
+ * Turn a VehicleType enum value into a readable label
+ * @param {string} vehicleType - e.g. 'THREE_WHEELER'
+ * @returns {string|null} null when the value is missing or empty
+ */
+export function formatVehicleType(vehicleType) {
+  const value = typeof vehicleType === 'string' ? vehicleType.trim() : '';
+
+  if (!value) {
+    return null;
+  }
+
+  const known = VEHICLE_TYPE_LABELS[value.toUpperCase()];
+  if (known) {
+    return known;
+  }
+
+  // Unknown future values: 'SCOOTER' -> 'Scooter'
+  const words = value.toLowerCase().replace(/_/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 /**
  * Format a rental price like "Rs. 1,500 / day"
  * @param {number|string} price
@@ -36,6 +66,11 @@ export default function RentalCard({ item }) {
   const title = item?.title?.trim() || 'Untitled rental';
   const price = formatRentalPrice(item?.rentalPrice, item?.rentalPeriod);
 
+  // vehicle is null for equipment rentals, so every read is optional
+  const vehicleType = formatVehicleType(item?.vehicle?.vehicleType);
+  const rawLocation = item?.vehicle?.pickupLocationName;
+  const pickupLocation = typeof rawLocation === 'string' ? rawLocation.trim() : '';
+
   return (
     <View style={styles.card}>
       <Text style={styles.title} numberOfLines={2}>
@@ -47,6 +82,22 @@ export default function RentalCard({ item }) {
       ) : (
         <Text style={styles.priceUnavailable}>Price not available</Text>
       )}
+
+      {vehicleType || pickupLocation ? (
+        <View style={styles.vehicleRow}>
+          {vehicleType ? (
+            <View style={styles.vehicleTypeBadge}>
+              <Text style={styles.vehicleTypeText}>{vehicleType}</Text>
+            </View>
+          ) : null}
+
+          {pickupLocation ? (
+            <Text style={styles.pickupLocation} numberOfLines={1}>
+              Pickup: {pickupLocation}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -78,6 +129,28 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 14,
     fontWeight: '500',
+    color: '#64748B',
+  },
+  vehicleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  vehicleTypeBadge: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    marginRight: 8,
+  },
+  vehicleTypeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  pickupLocation: {
+    flex: 1,
+    fontSize: 13,
     color: '#64748B',
   },
 });
