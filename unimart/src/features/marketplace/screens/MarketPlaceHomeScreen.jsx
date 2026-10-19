@@ -27,7 +27,7 @@ export default function MarketPlaceHomeScreen() {
       <View style={styles.searchBarContainer}>
         <View style={styles.placeholderContainer}>
           <Ionicons name='search-outline' size={24} color="#0F172A8D" />
-          <TextInput placeholder="Search Products..." style={{fontSize: 15}} />
+          <TextInput placeholder="Search Products..." style={{fontSize: 15, width:'85%'}} />
         </View>
 
         <TouchableOpacity>
@@ -92,8 +92,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 10,
     borderRadius: 8,
     paddingHorizontal: 10,
+    paddingVertical: 5
   },
 
   placeholderContainer:{
