@@ -1,34 +1,31 @@
 import { View, Text, StyleSheet } from 'react-native'
 import React from 'react'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { StatusBar } from 'expo-status-bar'
 
 export default function MarketPlaceHomeScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.headerContainer}>headline</Text>
-      <Text style={styles.bodyContainer}>MarketPlaceHomeScreen</Text>
-      <Text style={styles.bottomNavConatiner}>Bottom Navigation</Text>
-    </View>
+   <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="auto" />
+      <View style={styles.header}>
+        <Text>header</Text>
+      </View>
+
+      <View>
+        <Text>header</Text>
+      </View>
+
+   </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex:1,
-    backgroundColor: 'black',
+  safeArea: {
+    flex: 1,
+     backgroundColor: '#F8FAFC'
   },
 
-  headerContainer:{
-    flex:1,
-    backgroundColor: '#FFFFFF',
-  },
-
-  bodyContainer:{
-    flex:1,
-    backgroundColor: '#FFFFFF',
-  }, 
-
-  bottomNavConatiner: {
-    flex:1,
-    backgroundColor: '#FFFFFF',
+  header:{
+    flex: 1
   }
 })
