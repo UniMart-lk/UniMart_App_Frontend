@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native'
 import React from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
@@ -10,21 +10,29 @@ export default function MarketPlaceHomeScreen() {
       <StatusBar style="auto" />
 
        {/* 1. HEADER */}
-      <View style={styles.header}>
-        <View style={{flex:1,  borderWidth:1, borderColor:'red'}}> {/* borderWidth:1, borderColor:'red'*/ } 
-          <TouchableOpacity>
-            <Ionicons name='arrow-back' size={34} />
-          </TouchableOpacity>
-        </View>
+      <View style={styles.header}>                        {/* borderWidth:1, borderColor:'red'*/ } 
+        <TouchableOpacity>
+          <Ionicons name='arrow-back' size={30} color="#0F172A" />
+        </TouchableOpacity>
        
-        <View style={{flex:2.75, borderWidth:1, borderColor:'red' }}>
-          <Text style={{fontSize: 24, fontWeight:'bold' }}>Marketplace</Text>
+        <View>
+         <Text style={{fontSize: 24, fontWeight:'bold', color: '#0F172A' }}>Marketplace</Text>
         </View>
+
+        <View style={{width: 30, borderWidth:1, borderColor:'#ffffff'}}></View>
+
       </View>
 
        {/* 2. SEARCH & CATEGORIES */}
       <View style={styles.searchBarContainer}>
-        <Text>Search and Categories</Text>
+        <View style={styles.placeholderContainer}>
+          <Ionicons name='search-outline' size={24} color="#0F172A8D" />
+          <TextInput placeholder="Search Products..." style={{fontSize: 15}} />
+        </View>
+
+        <TouchableOpacity>
+          <Ionicons name="options-outline" size={24} color="#0F172A" />
+        </TouchableOpacity>
       </View>
 
       {/* Category Chips */}
@@ -64,22 +72,39 @@ const styles = StyleSheet.create({
   },
 
   header:{
-    flex: 0.5,
+    flex: 1.5,
     backgroundColor: '#ffffff',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     borderBottomWidth: 1,
     borderColor:'#E2E8F0',
-    paddingHorizontal: 12,
+    paddingHorizontal: 20,
   },
 
   searchBarContainer:{
-    flex: 1
+    flexDirection: 'row',
+    flex: 1,
+    marginVertical: 8,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor:'#E2E8F0',
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+  },
 
+  placeholderContainer:{
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
   },
 
   categoryChipsConatiner:{
     flex:1
+
   },
 
   resultsAndSortContainer:{
@@ -87,7 +112,7 @@ const styles = StyleSheet.create({
   },
 
   productGridContainer:{
-    flex:1
+    flex:10
   },
 
   fabContainer:{
