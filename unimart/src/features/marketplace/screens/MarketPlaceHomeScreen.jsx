@@ -54,7 +54,11 @@ const [activeCategory, setActiveCategory] = React.useState('All');
 
        {/* Results & Sort */}
       <View style={styles.resultsAndSortContainer}>
-        <Text>Results & Sort</Text>
+        <Text style={styles.result}>1234 results</Text>
+        <TouchableOpacity style={styles.sortbtn}>
+          <Text style={styles.sortText}>Sort: Newest</Text>
+          <Ionicons name="caret-down" size={15} color="#2563EB" />
+        </TouchableOpacity>
       </View>
 
       {/* 3. PRODUCT GRID */}
@@ -97,14 +101,14 @@ const styles = StyleSheet.create({
   searchBarContainer:{
     flexDirection: 'row',
     flex: 1,
-    marginVertical: 8,
+    marginVertical: 10,
     marginHorizontal: 15,
     borderWidth: 1,
     borderColor:'#E2E8F0',
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 12,
+    borderRadius: 10,
     paddingHorizontal: 15,
   },
 
@@ -123,7 +127,7 @@ const styles = StyleSheet.create({
 
   chipScroll: { 
     marginHorizontal: 15,
-    marginBottom: 15,
+    marginBottom: 20,
     flexGrow: 0
     
   },
@@ -133,9 +137,9 @@ const styles = StyleSheet.create({
   },
 
   chip:{
-    paddingVertical: 8,
+    paddingVertical: 5,
     paddingHorizontal:15,
-    borderRadius: 15,
+    borderRadius: 10,
     backgroundColor: '#FFFFFF',
     borderWidth:1,
     borderColor: '#E2E8F0'
@@ -156,7 +160,30 @@ const styles = StyleSheet.create({
     fontWeight: '500' },
 
   resultsAndSortContainer:{
-    flex:1
+    marginHorizontal:15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20
+  },
+
+  result:{
+    fontSize:12,
+    color:'#0F172A',
+    fontWeight: '500'
+  },
+
+  sortbtn:{
+    padding: 5,
+    flexDirection:'row',
+    alignItems:'center',
+    gap: 5
+
+  },
+
+  sortText:{
+    color: '#2563EB',
+    fontWeight:'500'
   },
 
   productGridContainer:{
