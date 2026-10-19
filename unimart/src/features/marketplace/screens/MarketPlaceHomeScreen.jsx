@@ -11,11 +11,14 @@ export default function MarketPlaceHomeScreen() {
 
        {/* 1. HEADER */}
       <View style={styles.header}>
-       <TouchableOpacity>
-        <Ionicons name='arrow-back' size={24} />
-       </TouchableOpacity>
-        <View>
-          <Text style={{fontSize: 24}}>Header</Text>
+        <View style={{flex:1,  borderWidth:1, borderColor:'red'}}> {/* borderWidth:1, borderColor:'red'*/ } 
+          <TouchableOpacity>
+            <Ionicons name='arrow-back' size={34} />
+          </TouchableOpacity>
+        </View>
+       
+        <View style={{flex:2.75, borderWidth:1, borderColor:'red' }}>
+          <Text style={{fontSize: 24, fontWeight:'bold' }}>Marketplace</Text>
         </View>
       </View>
 
@@ -65,8 +68,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth:1,
-    borderColor:'red'
+    borderBottomWidth: 1,
+    borderColor:'#E2E8F0',
+    paddingHorizontal: 12,
   },
 
   searchBarContainer:{
