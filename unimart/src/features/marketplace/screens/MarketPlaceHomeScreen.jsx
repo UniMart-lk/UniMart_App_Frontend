@@ -44,7 +44,7 @@ const categories= ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipContainer}>
         {categories.map ((cat) =>(
           <TouchableOpacity 
-              key={cat} >
+              key={cat} style={styles.chip} >
             <Text style={styles.chipText}>{cat}</Text>      
           </TouchableOpacity>
         ))}
@@ -121,17 +121,24 @@ const styles = StyleSheet.create({
 
   chipScroll: { 
     borderWidth: 1,
-    borderColor:'red',
+    borderColor:'#F8FAFC',
     marginHorizontal: 15,
     marginBottom: 15,
+    flexGrow: 0
     
   },
 
   chipContainer: { 
-    borderWidth: 1,
-    borderColor:'blue',
     gap: 8, 
-    paddingRight: 20
+  },
+
+  chip:{
+    paddingVertical: 8,
+    paddingHorizontal:16,
+    borderRadius: 15,
+    backgroundColor: '#FFFFFF',
+    borderWidth:1,
+    borderColor: '#E2E8F0'
   },
 
   chipText: { 
