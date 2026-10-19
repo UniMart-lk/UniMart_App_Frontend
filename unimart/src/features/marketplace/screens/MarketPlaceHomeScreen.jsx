@@ -14,27 +14,27 @@ export default function MarketPlaceHomeScreen() {
       </View>
 
        {/* 2. SEARCH & CATEGORIES */}
-      <View>
+      <View style={styles.searchBarContainer}>
         <Text>Search and Categories</Text>
       </View>
 
       {/* Category Chips */}
-       <View>
+       <View style={styles.categoryChipsConatiner}>
         <Text>Category Chips</Text>
       </View>
 
        {/* Results & Sort */}
-      <View>
+      <View style={styles.resultsAndSortContainer}>
         <Text>Results & Sort</Text>
       </View>
 
       {/* 3. PRODUCT GRID */}
-      <View>
+      <View style={styles.productGridContainer}>
         <Text>PRODUCT GRID</Text>
       </View>
 
       {/* 4. FLOATING ACTION BUTTON (FAB) */}
-      <View>
+      <View style={styles.fabContainer}>
         <Text>FLOATING ACTION BUTTON </Text>
       </View>
 
@@ -55,7 +55,40 @@ const styles = StyleSheet.create({
   },
 
   header:{
+    flex: 1,
+    backgroundColor: '#ffffff'
+  },
+
+  searchBarContainer:{
     flex: 1
+
+  },
+
+  categoryChipsConatiner:{
+    flex:1
+  },
+
+  resultsAndSortContainer:{
+    flex:1
+  },
+
+  productGridContainer:{
+    flex:1
+  },
+
+  fabContainer:{
+    flex:1
+  },
+
+  bottomNavConatiner:{
+    flex:1
   }
+
+
+
+
+
+  
+
 
 })
