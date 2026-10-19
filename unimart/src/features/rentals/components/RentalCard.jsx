@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 
 // Backend sends Prisma RentalPeriod enum values (HOURLY, DAILY, WEEKLY, MONTHLY)
 const PERIOD_LABELS = {
@@ -40,6 +41,17 @@ export function formatVehicleType(vehicleType) {
 }
 
 /**
+ * Return the image URL only if it is a usable http(s) address
+ * @param {string} url
+ * @returns {string|null} null when the URL is missing, empty, or not http(s)
+ */
+export function getValidImageUrl(url) {
+  const value = typeof url === 'string' ? url.trim() : '';
+
+  return /^https?:\/\/\S+$/i.test(value) ? value : null;
+}
+
+/**
  * Format a rental price like "Rs. 1,500 / day"
  * @param {number|string} price
  * @param {string} period - RentalPeriod enum value (e.g. 'DAILY') or a plain label (e.g. 'day')
@@ -62,7 +74,7 @@ export function formatRentalPrice(price, period) {
   return periodLabel ? `Rs. ${formatted} / ${periodLabel}` : `Rs. ${formatted}`;
 }
 
-export default function RentalCard({ item }) {
+function RentalCard({ item, onPress }) {
   const title = item?.title?.trim() || 'Untitled rental';
   const price = formatRentalPrice(item?.rentalPrice, item?.rentalPeriod);
 
@@ -71,36 +83,82 @@ export default function RentalCard({ item }) {
   const rawLocation = item?.vehicle?.pickupLocationName;
   const pickupLocation = typeof rawLocation === 'string' ? rawLocation.trim() : '';
 
-  return (
-    <View style={styles.card}>
-      <Text style={styles.title} numberOfLines={2}>
-        {title}
-      </Text>
+  const imageUrl = getValidImageUrl(item?.primaryImageUrl);
+  // Unique per rental so a recycled card never flashes the previous rental's image
+  const imageRecyclingKey = item?.id != null ? String(item.id) : imageUrl;
 
-      {price ? (
-        <Text style={styles.price}>{price}</Text>
+  // Remember WHICH url failed (not just "failed"), so a recycled card showing a
+  // different rental never inherits the previous rental's error
+  const [failedImageUrl, setFailedImageUrl] = useState(null);
+  const showImage = imageUrl !== null && imageUrl !== failedImageUrl;
+
+  const cardContent = (
+    <>
+      {showImage ? (
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.image}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={200}
+          recyclingKey={imageRecyclingKey}
+          onError={() => setFailedImageUrl(imageUrl)}
+        />
       ) : (
-        <Text style={styles.priceUnavailable}>Price not available</Text>
+        <View style={[styles.image, styles.imagePlaceholder]}>
+          <Text style={styles.imagePlaceholderText}>No image available</Text>
+        </View>
       )}
 
-      {vehicleType || pickupLocation ? (
-        <View style={styles.vehicleRow}>
-          {vehicleType ? (
-            <View style={styles.vehicleTypeBadge}>
-              <Text style={styles.vehicleTypeText}>{vehicleType}</Text>
-            </View>
-          ) : null}
+      <View style={styles.content}>
+        <Text style={styles.title} numberOfLines={2}>
+          {title}
+        </Text>
 
-          {pickupLocation ? (
-            <Text style={styles.pickupLocation} numberOfLines={1}>
-              Pickup: {pickupLocation}
-            </Text>
-          ) : null}
-        </View>
-      ) : null}
-    </View>
+        {price ? (
+          <Text style={styles.price}>{price}</Text>
+        ) : (
+          <Text style={styles.priceUnavailable}>Price not available</Text>
+        )}
+
+        {vehicleType || pickupLocation ? (
+          <View style={styles.vehicleRow}>
+            {vehicleType ? (
+              <View style={styles.vehicleTypeBadge}>
+                <Text style={styles.vehicleTypeText}>{vehicleType}</Text>
+              </View>
+            ) : null}
+
+            {pickupLocation ? (
+              <Text style={styles.pickupLocation} numberOfLines={1}>
+                Pickup: {pickupLocation}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    </>
+  );
+
+  // Only make the card tappable when the parent supplies a handler
+  if (typeof onPress !== 'function') {
+    return <View style={styles.card}>{cardContent}</View>;
+  }
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={() => onPress(item)}
+      accessibilityRole="button"
+      accessibilityLabel={`${title}, ${price ?? 'Price not available'}`}
+    >
+      {cardContent}
+    </Pressable>
   );
 }
+
+// Skip re-rendering when the item and onPress props are unchanged (shallow comparison)
+export default React.memo(RentalCard);
 
 const styles = StyleSheet.create({
   card: {
@@ -108,10 +166,31 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
     marginHorizontal: 16,
     marginBottom: 12,
+    // Clips the image to the card's rounded corners
+    overflow: 'hidden',
+  },
+  cardPressed: {
+    opacity: 0.85,
+  },
+  image: {
+    width: '100%',
+    height: 160,
+  },
+  imagePlaceholder: {
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imagePlaceholderText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#94A3B8',
+  },
+  content: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   title: {
     fontSize: 16,
