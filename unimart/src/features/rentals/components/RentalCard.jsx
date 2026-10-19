@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 
 // Backend sends Prisma RentalPeriod enum values (HOURLY, DAILY, WEEKLY, MONTHLY)
@@ -74,7 +74,7 @@ export function formatRentalPrice(price, period) {
   return periodLabel ? `Rs. ${formatted} / ${periodLabel}` : `Rs. ${formatted}`;
 }
 
-export default function RentalCard({ item }) {
+function RentalCard({ item, onPress }) {
   const title = item?.title?.trim() || 'Untitled rental';
   const price = formatRentalPrice(item?.rentalPrice, item?.rentalPeriod);
 
@@ -92,8 +92,8 @@ export default function RentalCard({ item }) {
   const [failedImageUrl, setFailedImageUrl] = useState(null);
   const showImage = imageUrl !== null && imageUrl !== failedImageUrl;
 
-  return (
-    <View style={styles.card}>
+  const cardContent = (
+    <>
       {showImage ? (
         <Image
           source={{ uri: imageUrl }}
@@ -137,9 +137,28 @@ export default function RentalCard({ item }) {
           </View>
         ) : null}
       </View>
-    </View>
+    </>
+  );
+
+  // Only make the card tappable when the parent supplies a handler
+  if (typeof onPress !== 'function') {
+    return <View style={styles.card}>{cardContent}</View>;
+  }
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={() => onPress(item)}
+      accessibilityRole="button"
+      accessibilityLabel={`${title}, ${price ?? 'Price not available'}`}
+    >
+      {cardContent}
+    </Pressable>
   );
 }
+
+// Skip re-rendering when the item and onPress props are unchanged (shallow comparison)
+export default React.memo(RentalCard);
 
 const styles = StyleSheet.create({
   card: {
@@ -151,6 +170,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     // Clips the image to the card's rounded corners
     overflow: 'hidden',
+  },
+  cardPressed: {
+    opacity: 0.85,
   },
   image: {
     width: '100%',
