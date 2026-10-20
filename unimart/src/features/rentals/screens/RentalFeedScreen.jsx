@@ -14,6 +14,8 @@ export default function RentalFeedScreen() {
   // Cursor for the next page; null means there are no more pages
   const [nextCursor, setNextCursor] = useState(null);
   const hasMore = nextCursor !== null;
+  // Drives the pagination footer (the ref below is the request guard)
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Each request gets an id; only the latest request may update state.
   // Bumping the id on unmount makes any in-flight request outdated.
@@ -25,6 +27,7 @@ export default function RentalFeedScreen() {
     const requestId = ++latestRequestId.current;
     // A first-page (re)load replaces the list, so any next-page request in flight is now outdated
     isLoadingMore.current = false;
+    setLoadingMore(false);
     setLoading(true);
     setError(null);
 
@@ -52,6 +55,7 @@ export default function RentalFeedScreen() {
     }
 
     isLoadingMore.current = true;
+    setLoadingMore(true);
     // Belongs to the current feed; outdated if the first page reloads or the screen unmounts
     const requestId = latestRequestId.current;
     const cursor = nextCursor;
@@ -70,6 +74,7 @@ export default function RentalFeedScreen() {
     } finally {
       if (requestId === latestRequestId.current) {
         isLoadingMore.current = false;
+        setLoadingMore(false);
       }
     }
   }, [loading, error, hasMore, nextCursor]);
@@ -120,6 +125,17 @@ export default function RentalFeedScreen() {
           rentals.length === 0 && styles.listContentEmpty,
         ]}
         ListEmptyComponent={<Text style={styles.statusText}>No rentals available</Text>}
+        // Infinite scroll: request the next page when within half a screen of the end
+        onEndReached={loadMoreRentals}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.footer}>
+              <ActivityIndicator size="small" color="#2563EB" />
+              <Text style={styles.footerText}>Loading more rentals...</Text>
+            </View>
+          ) : null
+        }
       />
     );
   }
@@ -166,6 +182,17 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  footerText: {
+    marginLeft: 8,
+    fontSize: 13,
+    color: '#64748B',
   },
   centered: {
     flex: 1,
