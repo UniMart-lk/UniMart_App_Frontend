@@ -22,11 +22,15 @@ export default function RentalFeedScreen() {
   const latestRequestId = useRef(0);
   // Synchronous guard so two next-page requests never run at the same time
   const isLoadingMore = useRef(false);
+  // Cursor of the last page that loaded successfully. An onEndReached from the previous
+  // render can still hold that cursor until React re-renders, so it must not be requested twice.
+  const lastLoadedCursor = useRef(null);
 
   const loadRentals = useCallback(async () => {
     const requestId = ++latestRequestId.current;
     // A first-page (re)load replaces the list, so any next-page request in flight is now outdated
     isLoadingMore.current = false;
+    lastLoadedCursor.current = null;
     setLoadingMore(false);
     setLoading(true);
     setError(null);
@@ -50,7 +54,7 @@ export default function RentalFeedScreen() {
   }, []);
 
   const loadMoreRentals = useCallback(async () => {
-    if (loading || error || !hasMore || isLoadingMore.current) {
+    if (loading || error || !hasMore || isLoadingMore.current || nextCursor === lastLoadedCursor.current) {
       return;
     }
 
@@ -64,6 +68,7 @@ export default function RentalFeedScreen() {
       const { rentals: nextPage, nextCursor: newCursor } = await getRentalFeed({ cursor });
 
       if (requestId === latestRequestId.current) {
+        lastLoadedCursor.current = cursor;
         setRentals((current) => [...current, ...nextPage]);
         // Stop paging on an empty page or a cursor that did not move, to avoid a request loop
         setNextCursor(nextPage.length === 0 || newCursor === cursor ? null : newCursor);
