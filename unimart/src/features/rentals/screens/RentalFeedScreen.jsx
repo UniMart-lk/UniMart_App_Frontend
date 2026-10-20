@@ -11,21 +11,29 @@ export default function RentalFeedScreen() {
   const [rentals, setRentals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Cursor for the next page; null means there are no more pages
+  const [nextCursor, setNextCursor] = useState(null);
+  const hasMore = nextCursor !== null;
 
   // Each request gets an id; only the latest request may update state.
   // Bumping the id on unmount makes any in-flight request outdated.
   const latestRequestId = useRef(0);
+  // Synchronous guard so two next-page requests never run at the same time
+  const isLoadingMore = useRef(false);
 
   const loadRentals = useCallback(async () => {
     const requestId = ++latestRequestId.current;
+    // A first-page (re)load replaces the list, so any next-page request in flight is now outdated
+    isLoadingMore.current = false;
     setLoading(true);
     setError(null);
 
     try {
-      const { rentals: firstPage } = await getRentalFeed();
+      const { rentals: firstPage, nextCursor: firstCursor } = await getRentalFeed();
 
       if (requestId === latestRequestId.current) {
         setRentals(firstPage);
+        setNextCursor(firstPage.length > 0 ? firstCursor : null);
       }
     } catch (err) {
       if (requestId === latestRequestId.current) {
@@ -37,6 +45,34 @@ export default function RentalFeedScreen() {
       }
     }
   }, []);
+
+  const loadMoreRentals = useCallback(async () => {
+    if (loading || error || !hasMore || isLoadingMore.current) {
+      return;
+    }
+
+    isLoadingMore.current = true;
+    // Belongs to the current feed; outdated if the first page reloads or the screen unmounts
+    const requestId = latestRequestId.current;
+    const cursor = nextCursor;
+
+    try {
+      const { rentals: nextPage, nextCursor: newCursor } = await getRentalFeed({ cursor });
+
+      if (requestId === latestRequestId.current) {
+        setRentals((current) => [...current, ...nextPage]);
+        // Stop paging on an empty page or a cursor that did not move, to avoid a request loop
+        setNextCursor(nextPage.length === 0 || newCursor === cursor ? null : newCursor);
+      }
+    } catch (err) {
+      // Keep the loaded rentals and the cursor so this page can be requested again
+      console.warn('Failed to load more rentals:', err?.message);
+    } finally {
+      if (requestId === latestRequestId.current) {
+        isLoadingMore.current = false;
+      }
+    }
+  }, [loading, error, hasMore, nextCursor]);
 
   useEffect(() => {
     loadRentals();
