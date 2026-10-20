@@ -89,13 +89,12 @@ const renderProduct = ({ item }) => (
     </TouchableOpacity>
   );
 
-
   return (
    <SafeAreaView style={styles.safeArea}>
       <StatusBar style="auto" />
 
        {/* 1. HEADER */}
-      <View style={styles.header}>                        {/* borderWidth:1, borderColor:'red'*/ } 
+      <View style={styles.header}>                    
         <TouchableOpacity>
           <Ionicons name='arrow-back' size={25} color="#0F172A" />
         </TouchableOpacity>
@@ -291,9 +290,17 @@ const styles = StyleSheet.create({
     marginBottom: 15
   },
 
-  imageContainer: { width: '100%', aspectRatio: 1, position: 'relative' },
+  imageContainer: { 
+    width: '100%', 
+    aspectRatio: 1, 
+    position: 'relative' 
+  },
 
-  image: { width: '100%', height: '100%' },
+  image: { 
+    width: '100%', 
+    height: '100%' 
+  },
+
   conditionBadge: {
     position: 'absolute',
     top: 8,
@@ -303,7 +310,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
   },
-  conditionText: { fontSize: 10, fontWeight: '600', color: '#0F172A' },
+
+  conditionText: { 
+    fontSize: 10, 
+    fontWeight: '500',
+     color: '#0F172A' 
+  },
+
   heartIcon: {
     position: 'absolute',
     top: 8,
@@ -342,12 +355,4 @@ const styles = StyleSheet.create({
   bottomNavConatiner:{
     flex:1
   }
-
-
-
-
-
-  
-
-
 })
