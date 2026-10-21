@@ -181,12 +181,15 @@ const renderProduct = ({ item }) => (
           <Text style={[styles.navText, activeTab === 'rentals' && styles.navTextActive]}>Rentals</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
-          <View>
+        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('messages')}>
+          <View style={activeTab === 'messages' ? styles.activeIconBg : styles.inactiveIconBg}>
+             <View >
             <Ionicons name="chatbox" size={24} color="#64748B" />
-            <View style={styles.navBadge}><Text style={styles.navBadgeText}>3</Text></View>
+            <View style={styles.navBadge}>
+              <Text style={styles.navBadgeText}>3</Text></View>
           </View>
-          <Text style={styles.navText}>Messages</Text>
+          </View>
+          <Text style={[styles.navText, activeTab === 'messages' && styles.navTextActive]}>Messages</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem}>
