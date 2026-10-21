@@ -152,13 +152,35 @@ const renderProduct = ({ item }) => (
 
         {/* 4. FLOATING ACTION BUTTON (FAB) */}
         <TouchableOpacity style={styles.fab}>
-          <Ionicons name="add" size={32} color="#FFFFFF" />
+          <Ionicons name="add" size={30} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
        {/* 5. BOTTOM NAVIGATION */}
-        <View>
-        <Text>BOTTOM NAVIGATION</Text>
+      <View style={styles.bottomNavConatiner}>
+        <TouchableOpacity style={styles.navItem}>
+          <Text style={styles.navIcon}>🏠</Text>
+          <Text style={styles.navText}>Home</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}>
+          <Text style={[styles.navIcon, { tintColor: '#2563EB' }]}>🏪</Text>
+          <Text style={[styles.navText, { color: '#2563EB', fontWeight: 'bold' }]}>Marketplace</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}>
+          <Text style={styles.navIcon}>🚗</Text>
+          <Text style={styles.navText}>Rentals</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}>
+          <View>
+            <Text style={styles.navIcon}>💬</Text>
+            <View style={styles.navBadge}><Text style={styles.navBadgeText}>3</Text></View>
+          </View>
+          <Text style={styles.navText}>Messages</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}>
+          <Text style={styles.navIcon}>👤</Text>
+          <Text style={styles.navText}>Profile</Text>
+        </TouchableOpacity>
       </View>
 
    </SafeAreaView>
@@ -273,9 +295,7 @@ const styles = StyleSheet.create({
 
   productGridContainer:{
     flex:10,
-    marginHorizontal: 15,
-    borderWidth:1,
-    borderColor: 'red'
+    marginHorizontal: 15
   },
 
   cardContainer: {
@@ -353,8 +373,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 15, // Above bottom nav
     right: 15,
-    width: 40,
-    height: 40,
+    width: 45,
+    height: 45,
     borderRadius: 28,
     backgroundColor: '#2563EB',
     alignItems: 'center',
@@ -368,6 +388,28 @@ const styles = StyleSheet.create({
   fabIcon: { fontSize: 28, color: '#FFFFFF', marginTop: -2 },
 
   bottomNavConatiner:{
-    flex:1
-  }
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 10,
+    paddingHorizontal:15
+  },
+
+  navItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  navIcon: { fontSize: 22, marginBottom: 4, color: '#94A3B8' },
+
+  navText: { fontSize: 12, color: '#0F172A', fontWeight: '500' },
+  navBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -10,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navBadgeText: { fontSize: 9, color: '#FFFFFF', fontWeight: 'bold' },
 })
