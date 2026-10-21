@@ -168,10 +168,12 @@ const renderProduct = ({ item }) => (
           <Ionicons name="storefront" size={24} color="#2563EB" />
           <Text style={[styles.navText, { color: '#2563EB', fontWeight: 'bold' }]}>Marketplace</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="car" size={24} color="#64748B" />
           <Text style={styles.navText}>Rentals</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem}>
           <View>
             <Ionicons name="chatbox" size={24} color="#64748B" />
@@ -179,6 +181,7 @@ const renderProduct = ({ item }) => (
           </View>
           <Text style={styles.navText}>Messages</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="person" size={24} color="#64748B" />
           <Text style={styles.navText}>Profile</Text>
@@ -407,13 +410,12 @@ const styles = StyleSheet.create({
     borderColor:'red' 
   },
 
-  navIcon: { fontSize: 22, marginBottom: 4, color: '#94A3B8' },
-
   navText: { fontSize: 12, color: '#0F172A', fontWeight: '500' },
+
   navBadge: {
     position: 'absolute',
-    top: -4,
-    right: -10,
+    top: -3,
+    right: -8,
     backgroundColor: '#EF4444',
     borderRadius: 8,
     width: 16,
@@ -421,5 +423,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   navBadgeText: { fontSize: 9, color: '#FFFFFF', fontWeight: 'bold' },
 })
