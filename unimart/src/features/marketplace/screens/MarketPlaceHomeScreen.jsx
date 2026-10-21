@@ -160,14 +160,20 @@ const renderProduct = ({ item }) => (
        {/* 5. BOTTOM NAVIGATION */}
       <View style={styles.bottomNavConatiner}>
 
-        <TouchableOpacity style={styles.navItem}>
-         <Ionicons name="home-sharp" size={24} color="#64748B" />
+        <TouchableOpacity style={styles.navItem}  onPress={() => setActiveTab('home')}>
+          <View style={activeTab === 'home' ? styles.activeIconBg : styles.inactiveIconBg}>
+            <Ionicons name="home-sharp" size={24} color={activeTab === 'home' ? '#2563EB' : '#64748B'} />
+          </View>
+         
         <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="storefront" size={24} color="#2563EB" />
-          <Text style={[styles.navText, { color: '#2563EB', fontWeight: 'bold' }]}>Marketplace</Text>
+        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('marketplace')}>
+           <View style={activeTab === 'marketplace' ? styles.activeIconBg : styles.inactiveIconBg}>
+             <Ionicons name="storefront" size={24} color={activeTab === 'marketplace' ? '#2563EB' : '#64748B'} />
+          </View>
+         
+          <Text style={[styles.navText, activeTab === 'marketplace' && styles.navTextActive]}>Marketplace</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem}>
@@ -411,7 +417,28 @@ const styles = StyleSheet.create({
     borderColor:'red' 
   },
 
+  activeIconBg: {
+  backgroundColor: '#E0E7FF', // Light blue background for active tab
+  paddingHorizontal: 16,      // Makes it a pill shape
+  paddingVertical: 5,
+  borderRadius: 20,
+
+},
+
+inactiveIconBg: {
+  paddingHorizontal: 16,
+  paddingVertical: 5,
+  backgroundColor: 'transparent',
+},
+
   navText: { fontSize: 12, color: '#0F172A', fontWeight: '500' },
+
+  navTextActive: {
+  color: '#2563EB',
+  fontWeight: 'bold',
+},
+
+
 
   navBadge: {
     position: 'absolute',
