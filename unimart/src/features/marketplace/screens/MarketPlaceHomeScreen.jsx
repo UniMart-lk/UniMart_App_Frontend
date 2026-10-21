@@ -160,27 +160,27 @@ const renderProduct = ({ item }) => (
       <View style={styles.bottomNavConatiner}>
 
         <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navIcon}>🏠</Text>
-          <Text style={styles.navText}>Home</Text>
+         <Ionicons name="home-sharp" size={24} color="#64748B" />
+        <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.navItem}>
-          <Text style={[styles.navIcon, { tintColor: '#414141' }]}>🏪</Text>
+          <Ionicons name="storefront" size={24} color="#2563EB" />
           <Text style={[styles.navText, { color: '#2563EB', fontWeight: 'bold' }]}>Marketplace</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navIcon}>🚗</Text>
+          <Ionicons name="car" size={24} color="#64748B" />
           <Text style={styles.navText}>Rentals</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem}>
           <View>
-            <Text style={styles.navIcon}>💬</Text>
+            <Ionicons name="chatbox" size={24} color="#64748B" />
             <View style={styles.navBadge}><Text style={styles.navBadgeText}>3</Text></View>
           </View>
           <Text style={styles.navText}>Messages</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navIcon}>👤</Text>
+          <Ionicons name="person" size={24} color="#64748B" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>
