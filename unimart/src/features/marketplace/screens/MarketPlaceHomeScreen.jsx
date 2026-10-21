@@ -1,10 +1,12 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Alert } from 'react-native'
 import React from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScrollView } from 'react-native';
 import { FlatList } from 'react-native';
+import { router } from 'expo-router';
+import { useChat } from '@/features/chat/ChatContext';
 
   // --- MOCK DATA ---
 const categories= ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
@@ -49,13 +51,47 @@ const products = [
 ];
 
 export default function MarketPlaceHomeScreen() {
+  const { createOrGetConversation, unreadTotal } = useChat();
+  const [activeCategory, setActiveCategory] = React.useState('All');
+  const [activeTab, setActiveTab] = React.useState('marketplace');
 
-const [activeCategory, setActiveCategory] = React.useState('All');
-const [activeTab, setActiveTab] = React.useState('marketplace'); // Default to marketplace
+  const handleProductPress = (item) => {
+    Alert.alert(
+      item.title,
+      `${item.price} • ${item.condition}\nLocation: ${item.location}`,
+      [
+        { text: 'Close', style: 'cancel' },
+        {
+          text: '💬 Chat with Seller',
+          onPress: () => {
+            const sellerName = item.providerType === 'student' ? 'Student Seller' : 'Campus Merchant';
+            const convId = createOrGetConversation({
+              name: `${sellerName} (${item.title.split(' ')[0]})`,
+              role: 'seller',
+              badge: item.providerType === 'student' ? 'Student Seller' : 'Verified Merchant',
+              item: {
+                id: item.id,
+                title: item.title,
+                price: item.price,
+                category: 'Marketplace',
+                image: item.image,
+                location: item.location,
+              },
+            });
+            router.push({ pathname: '/chat/[id]', params: { id: convId } });
+          },
+        },
+      ]
+    );
+  };
 
-// Render individual product card
-const renderProduct = ({ item }) => (
-    <TouchableOpacity style={styles.cardContainer}>
+  // Render individual product card
+  const renderProduct = ({ item }) => (
+    <TouchableOpacity
+      style={styles.cardContainer}
+      activeOpacity={0.85}
+      onPress={() => handleProductPress(item)}
+    >
       {/* Image & Badges */}
       <View style={styles.imageContainer}>
         <Image source={{ uri: item.image }} style={styles.image} />
@@ -77,35 +113,53 @@ const renderProduct = ({ item }) => (
         <Text style={styles.productPrice}>{item.price}</Text>
         
         <View style={styles.locationRow}>
-          <Ionicons name="location" size={12} color="#EF4444" style={{ marginRight: 4 }} 
-  />
+          <Ionicons name="location" size={12} color="#EF4444" style={{ marginRight: 4 }} />
           <Text style={styles.locationText} numberOfLines={1}>{item.location}</Text>
         </View>
 
-        {/* Provider Badge */}
-        <View style={[styles.providerBadge, item.providerType === 'external' ? styles.bgTeal : styles.bgPurple]}>
-          <Text style={styles.providerIcon}>{item.providerType === 'external' ? <MaterialCommunityIcons name="earth" size={12} color="#FFFFFF" /> : <Ionicons name="school" size={12} color="#FFFFFF" />}</Text>
+        {/* Provider Badge & Chat Shortcut */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={[styles.providerBadge, item.providerType === 'external' ? styles.bgTeal : styles.bgPurple]}>
+            <Text style={styles.providerIcon}>{item.providerType === 'external' ? <MaterialCommunityIcons name="earth" size={12} color="#FFFFFF" /> : <Ionicons name="school" size={12} color="#FFFFFF" />}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.quickChatIconBtn}
+            onPress={() => handleProductPress(item)}
+            accessibilityLabel={`Chat about ${item.title}`}
+          >
+            <Ionicons name="chatbubble-ellipses" size={14} color="#2563EB" />
+          </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
   );
 
   return (
-   <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar style="auto" />
 
-       {/* 1. HEADER */}
+      {/* 1. HEADER */}
       <View style={styles.header}>                    
-        <TouchableOpacity>
-          <Ionicons name='arrow-back' size={25} color="#0F172A" />
+        <TouchableOpacity onPress={() => router.push('/home')}>
+          <Ionicons name='arrow-back' size={24} color="#0F172A" />
         </TouchableOpacity>
        
         <View>
-         <Text style={{fontSize: 20, fontWeight:'bold', color: '#0F172A' }}>Marketplace</Text>
+          <Text style={{fontSize: 20, fontWeight:'bold', color: '#0F172A' }}>Marketplace</Text>
         </View>
 
-        <View style={{width: 25, borderWidth:1, borderColor:'#ffffff'}}></View>
-
+        <TouchableOpacity
+          onPress={() => router.push('/chat')}
+          style={{ position: 'relative', padding: 4 }}
+          accessibilityLabel="Open messages"
+        >
+          <Ionicons name="chatbubbles-outline" size={24} color="#2563EB" />
+          {unreadTotal > 0 && (
+            <View style={styles.headerChatBadge}>
+              <Text style={styles.headerChatBadgeText}>{unreadTotal}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
        {/* 2. SEARCH & CATEGORIES */}
@@ -159,44 +213,46 @@ const renderProduct = ({ item }) => (
 
        {/* 5. BOTTOM NAVIGATION */}
       <View style={styles.bottomNavConatiner}>
-
-        <TouchableOpacity style={styles.navItem}  onPress={() => setActiveTab('home')}>
-          <View style={activeTab === 'home' ? styles.activeIconBg : styles.inactiveIconBg}>
-            <Ionicons name="home-sharp" size={24} color={activeTab === 'home' ? '#2563EB' : '#64748B'} />
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/home')}>
+          <View style={styles.inactiveIconBg}>
+            <Ionicons name="home-sharp" size={24} color="#64748B" />
           </View>
-        <Text style={styles.navText}>Home</Text>
+          <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('marketplace')}>
-           <View style={activeTab === 'marketplace' ? styles.activeIconBg : styles.inactiveIconBg}>
-             <Ionicons name="storefront" size={24} color={activeTab === 'marketplace' ? '#2563EB' : '#64748B'} />
+          <View style={styles.activeIconBg}>
+            <Ionicons name="storefront" size={24} color="#2563EB" />
           </View>
-          <Text style={[styles.navText, activeTab === 'marketplace' && styles.navTextActive]}>Marketplace</Text>
+          <Text style={[styles.navText, styles.navTextActive]}>Marketplace</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('rentals')}>
-          <View style={activeTab === 'rentals' ? styles.activeIconBg : styles.inactiveIconBg}>
-            <Ionicons name="car" size={24} color={activeTab === 'rentals' ? '#2563EB' : '#64748B'} />
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/pages/myBookings')}>
+          <View style={styles.inactiveIconBg}>
+            <Ionicons name="car" size={24} color="#64748B" />
           </View>
-          <Text style={[styles.navText, activeTab === 'rentals' && styles.navTextActive]}>Rentals</Text>
+          <Text style={styles.navText}>Rentals</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('messages')}>
-          <View style={activeTab === 'messages' ? styles.activeIconBg : styles.inactiveIconBg}>
-             <View >
-            <Ionicons name="chatbox" size={24} color={activeTab === 'messages' ? '#2563EB' : '#64748B'} />
-            <View style={styles.navBadge}>
-              <Text style={styles.navBadgeText}>3</Text></View>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/chat')}>
+          <View style={styles.inactiveIconBg}>
+            <View>
+              <Ionicons name="chatbox" size={24} color="#64748B" />
+              {unreadTotal > 0 && (
+                <View style={styles.navBadge}>
+                  <Text style={styles.navBadgeText}>{unreadTotal}</Text>
+                </View>
+              )}
+            </View>
           </View>
-          </View>
-          <Text style={[styles.navText, activeTab === 'messages' && styles.navTextActive]}>Messages</Text>
+          <Text style={styles.navText}>Messages</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('person')}>
-           <View style={activeTab === 'person' ? styles.activeIconBg : styles.inactiveIconBg}>
-                <Ionicons name="person" size={24} color={activeTab === 'person' ? '#2563EB' : '#64748B'} />
-           </View>
-          <Text style={[styles.navText, activeTab === 'person' && styles.navTextActive]}>Profile</Text>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/home')}>
+          <View style={styles.inactiveIconBg}>
+            <Ionicons name="person" size={24} color="#64748B" />
+          </View>
+          <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>
 
@@ -458,4 +514,27 @@ inactiveIconBg: {
   },
 
   navBadgeText: { fontSize: 9, color: '#FFFFFF', fontWeight: 'bold' },
+  quickChatIconBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  headerChatBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerChatBadgeText: {
+    fontSize: 9,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
 })

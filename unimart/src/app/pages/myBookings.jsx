@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useChat } from '@/features/chat/ChatContext';
 
 // UniMart Project Theme Colors
 const COLORS = {
@@ -232,6 +233,7 @@ export default function MyBookingsScreen({
   onNavigate,
   initialSection = 'bookings',
 }) {
+  const { createOrGetConversation } = useChat();
   // Main section toggle: 'bookings' (items I booked) vs 'listings' (my published items)
   const [activeSection, setActiveSection] = useState(initialSection);
 
@@ -328,23 +330,28 @@ export default function MyBookingsScreen({
   };
 
   // Open Chat with Provider
-  const handleContactHost = (hostName) => {
+  const handleContactHost = (hostName, booking) => {
+    const target = booking || selectedBooking;
     if (selectedBooking) {
       setSelectedBooking(null);
     }
-    Alert.alert(
-      'Message Provider',
-      `Open chat conversation with ${hostName}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Start Chat',
-          onPress: () => {
-            router.push('/chat');
-          },
-        },
-      ]
-    );
+    const convId = createOrGetConversation({
+      name: hostName,
+      role: 'seller',
+      badge: 'Rental Provider',
+      isVerified: true,
+      item: target
+        ? {
+            id: target.id,
+            title: target.title,
+            price: `LKR ${target.pricePerDay} / day`,
+            category: 'Rental',
+            image: target.image,
+            location: target.pickupLocation,
+          }
+        : null,
+    });
+    router.push({ pathname: '/chat/[id]', params: { id: convId } });
   };
 
   // Call Provider
@@ -532,7 +539,7 @@ export default function MyBookingsScreen({
             {/* Contact Host Button */}
             <TouchableOpacity
               style={styles.secondaryButton}
-              onPress={() => handleContactHost(item.host.name)}
+              onPress={() => handleContactHost(item.host.name, item)}
               accessibilityRole="button"
               accessibilityLabel={`Contact ${item.host.name}`}
             >
