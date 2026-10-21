@@ -51,6 +51,7 @@ const products = [
 export default function MarketPlaceHomeScreen() {
 
 const [activeCategory, setActiveCategory] = React.useState('All');
+const [activeTab, setActiveTab] = React.useState('marketplace'); // Default to marketplace
 
 // Render individual product card
 const renderProduct = ({ item }) => (
