@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import authService from '@/services/authService';
+import { useChat } from '@/features/chat/ChatContext';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { clearConversations } = useChat();
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,7 @@ export default function HomeScreen() {
   };
 
   const handleLogout = async () => {
+    clearConversations();
     try {
       await authService.logout();
       router.replace('/login');
@@ -113,6 +116,11 @@ export default function HomeScreen() {
         )}
       </View>
 
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open messages" onPress={() => router.push('/chat')} style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+        <Ionicons name="chatbubbles-outline" size={28} color="#2563EB" />
+        <View style={{ flex: 1 }}><Text style={styles.headerTitle}>Messages</Text><Text style={styles.headerGreeting}>Open your UniMart conversations</Text></View>
+        <Ionicons name="chevron-forward" size={22} color="#64748B" />
+      </TouchableOpacity>
       {/* Logout Action */}
       <TouchableOpacity
         style={styles.logoutButton}

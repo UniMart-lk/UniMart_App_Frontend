@@ -1,3 +1,4 @@
+﻿import { router } from 'expo-router';
 import React, { useState } from "react";
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, Alert, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -282,6 +283,7 @@ export default function MyListings({
               style={styles.navItem}
               onPress={() => {
                 if (onNavigate) return onNavigate(item.label);
+                if (item.label === 'Messages') return router.push('/chat');
 
                 if (!selected) {
                   Alert.alert(
@@ -292,11 +294,7 @@ export default function MyListings({
               }}
             >
               <View style={[ styles.navIconContainer, selected && styles.selectedNavIcon,]}>
-                <Ionicons name={item.icon} size={22} color={selected ? COLORS.primary : "#63748B"}/>{item.label === "Messages" && (
-                  <View style={styles.notificationBadge}>
-                    <Text style={styles.notificationText}>3</Text>
-                  </View>
-                )}
+                <Ionicons name={item.icon} size={22} color={selected ? COLORS.primary : "#63748B"}/>
               </View>
 
               <Text numberOfLines={1} style={[ styles.navLabel, selected && styles.selectedNavLabel, ]}> {item.label} </Text>
@@ -544,3 +542,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 });
+
