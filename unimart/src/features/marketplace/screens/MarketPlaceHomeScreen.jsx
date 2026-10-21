@@ -164,7 +164,6 @@ const renderProduct = ({ item }) => (
           <View style={activeTab === 'home' ? styles.activeIconBg : styles.inactiveIconBg}>
             <Ionicons name="home-sharp" size={24} color={activeTab === 'home' ? '#2563EB' : '#64748B'} />
           </View>
-         
         <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
         
@@ -172,13 +171,14 @@ const renderProduct = ({ item }) => (
            <View style={activeTab === 'marketplace' ? styles.activeIconBg : styles.inactiveIconBg}>
              <Ionicons name="storefront" size={24} color={activeTab === 'marketplace' ? '#2563EB' : '#64748B'} />
           </View>
-         
           <Text style={[styles.navText, activeTab === 'marketplace' && styles.navTextActive]}>Marketplace</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="car" size={24} color="#64748B" />
-          <Text style={styles.navText}>Rentals</Text>
+        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('rentals')}>
+          <View style={activeTab === 'rentals' ? styles.activeIconBg : styles.inactiveIconBg}>
+            <Ionicons name="car" size={24} color={activeTab === 'rentals' ? '#2563EB' : '#64748B'} />
+          </View>
+          <Text style={[styles.navText, activeTab === 'rentals' && styles.navTextActive]}>Rentals</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem}>
