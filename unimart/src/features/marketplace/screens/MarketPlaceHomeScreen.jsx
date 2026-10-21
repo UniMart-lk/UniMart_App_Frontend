@@ -66,7 +66,7 @@ const renderProduct = ({ item }) => (
 
         {/* Heart Icon (Mock) */}
         <View style={styles.heartIcon}>
-          <Text style={{ fontSize: 14 }}>♡</Text>
+          <Ionicons name="heart-outline" size={15} color="#0F172A" />
         </View>
       </View>
 
@@ -148,12 +148,14 @@ const renderProduct = ({ item }) => (
          numColumns={2}
          columnWrapperStyle={styles.row}
          showsVerticalScrollIndicator={false}
-         contentContainerStyle={{ paddingBottom: 100 }} />
+         contentContainerStyle={{ paddingBottom: 15 }} />
       </View>
 
       {/* 4. FLOATING ACTION BUTTON (FAB) */}
       <View style={styles.fabContainer}>
-        <Text>FLOATING ACTION BUTTON </Text>
+        <TouchableOpacity>
+          <Text>FLOATING ACTION BUTTON </Text>
+        </TouchableOpacity>
       </View>
 
        {/* 5. BOTTOM NAVIGATION */}
