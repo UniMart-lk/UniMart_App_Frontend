@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'reac
 import React from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScrollView } from 'react-native';
 import { FlatList } from 'react-native';
 
@@ -51,6 +51,7 @@ const products = [
 export default function MarketPlaceHomeScreen() {
 
 const [activeCategory, setActiveCategory] = React.useState('All');
+const [activeTab, setActiveTab] = React.useState('marketplace'); // Default to marketplace
 
 // Render individual product card
 const renderProduct = ({ item }) => (
@@ -66,7 +67,7 @@ const renderProduct = ({ item }) => (
 
         {/* Heart Icon (Mock) */}
         <View style={styles.heartIcon}>
-          <Text style={{ fontSize: 14 }}>♡</Text>
+          <Ionicons name="heart-outline" size={15} color="#0F172A" />
         </View>
       </View>
 
@@ -76,14 +77,14 @@ const renderProduct = ({ item }) => (
         <Text style={styles.productPrice}>{item.price}</Text>
         
         <View style={styles.locationRow}>
-          <Text style={styles.locationIcon}>📍</Text>
+          <Ionicons name="location" size={12} color="#EF4444" style={{ marginRight: 4 }} 
+  />
           <Text style={styles.locationText} numberOfLines={1}>{item.location}</Text>
         </View>
 
         {/* Provider Badge */}
         <View style={[styles.providerBadge, item.providerType === 'external' ? styles.bgTeal : styles.bgPurple]}>
-          <Text style={styles.providerIcon}>{item.providerType === 'external' ? '🌐' : '🎓'}</Text>
-          <Text style={styles.providerIcon}>{item.providerType === 'external' ? '🏪' : '🎒'}</Text>
+          <Text style={styles.providerIcon}>{item.providerType === 'external' ? <MaterialCommunityIcons name="earth" size={12} color="#FFFFFF" /> : <Ionicons name="school" size={12} color="#FFFFFF" />}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -148,17 +149,55 @@ const renderProduct = ({ item }) => (
          numColumns={2}
          columnWrapperStyle={styles.row}
          showsVerticalScrollIndicator={false}
-         contentContainerStyle={{ paddingBottom: 100 }} />
-      </View>
+         contentContainerStyle={{ paddingBottom: 15 }} />
 
-      {/* 4. FLOATING ACTION BUTTON (FAB) */}
-      <View style={styles.fabContainer}>
-        <Text>FLOATING ACTION BUTTON </Text>
+        {/* 4. FLOATING ACTION BUTTON (FAB) */}
+        <TouchableOpacity style={styles.fab}>
+          <Ionicons name="add" size={30} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
 
        {/* 5. BOTTOM NAVIGATION */}
-        <View>
-        <Text>BOTTOM NAVIGATION</Text>
+      <View style={styles.bottomNavConatiner}>
+
+        <TouchableOpacity style={styles.navItem}  onPress={() => setActiveTab('home')}>
+          <View style={activeTab === 'home' ? styles.activeIconBg : styles.inactiveIconBg}>
+            <Ionicons name="home-sharp" size={24} color={activeTab === 'home' ? '#2563EB' : '#64748B'} />
+          </View>
+        <Text style={styles.navText}>Home</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('marketplace')}>
+           <View style={activeTab === 'marketplace' ? styles.activeIconBg : styles.inactiveIconBg}>
+             <Ionicons name="storefront" size={24} color={activeTab === 'marketplace' ? '#2563EB' : '#64748B'} />
+          </View>
+          <Text style={[styles.navText, activeTab === 'marketplace' && styles.navTextActive]}>Marketplace</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('rentals')}>
+          <View style={activeTab === 'rentals' ? styles.activeIconBg : styles.inactiveIconBg}>
+            <Ionicons name="car" size={24} color={activeTab === 'rentals' ? '#2563EB' : '#64748B'} />
+          </View>
+          <Text style={[styles.navText, activeTab === 'rentals' && styles.navTextActive]}>Rentals</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('messages')}>
+          <View style={activeTab === 'messages' ? styles.activeIconBg : styles.inactiveIconBg}>
+             <View >
+            <Ionicons name="chatbox" size={24} color={activeTab === 'messages' ? '#2563EB' : '#64748B'} />
+            <View style={styles.navBadge}>
+              <Text style={styles.navBadgeText}>3</Text></View>
+          </View>
+          </View>
+          <Text style={[styles.navText, activeTab === 'messages' && styles.navTextActive]}>Messages</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('person')}>
+           <View style={activeTab === 'person' ? styles.activeIconBg : styles.inactiveIconBg}>
+                <Ionicons name="person" size={24} color={activeTab === 'person' ? '#2563EB' : '#64748B'} />
+           </View>
+          <Text style={[styles.navText, activeTab === 'person' && styles.navTextActive]}>Profile</Text>
+        </TouchableOpacity>
       </View>
 
    </SafeAreaView>
@@ -273,7 +312,8 @@ const styles = StyleSheet.create({
 
   productGridContainer:{
     flex:10,
-    marginHorizontal: 15
+    marginHorizontal: 15,
+     marginBottom: 10
   },
 
   cardContainer: {
@@ -328,11 +368,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   cardDetails: { padding: 12 },
   productTitle: { fontSize: 14, fontWeight: '500', color: '#0F172A', marginBottom: 4, minHeight: 40 },
   productPrice: { fontSize: 15, fontWeight: '700', color: '#2563EB', marginBottom: 8 },
   locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  locationIcon: { fontSize: 10, marginRight: 4 },
   locationText: { fontSize: 11, color: '#64748B', flex: 1 },
   
   providerBadge: {
@@ -346,13 +386,76 @@ const styles = StyleSheet.create({
   },
   bgPurple: { backgroundColor: '#8B5CF6' },
   bgTeal: { backgroundColor: '#06B6D4' },
-  providerIcon: { fontSize: 10, color: '#FFFFFF' },
 
-  fabContainer:{
-    flex:1
+  fab: {
+    position: 'absolute',
+    bottom: 15, // Above bottom nav
+    right: 15,
+    width: 45,
+    height: 45,
+    borderRadius: 28,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
   },
 
+  fabIcon: { fontSize: 28, color: '#FFFFFF', marginTop: -2 },
+
   bottomNavConatiner:{
-    flex:1
-  }
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 10,
+    paddingHorizontal:15,
+  },
+
+  navItem: { 
+    flex: 1, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+   
+  },
+
+  activeIconBg: {
+  backgroundColor: '#E0E7FF', // Light blue background for active tab
+  paddingHorizontal: 16,      // Makes it a pill shape
+  paddingVertical: 5,
+  borderRadius: 20,
+
+},
+
+inactiveIconBg: {
+  paddingHorizontal: 16,
+  paddingVertical: 5,
+  backgroundColor: 'transparent',
+},
+
+  navText: { fontSize: 12, color: '#0F172A', fontWeight: '500' },
+
+  navTextActive: {
+  color: '#2563EB',
+  fontWeight: 'bold',
+},
+
+
+
+  navBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -8,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  navBadgeText: { fontSize: 9, color: '#FFFFFF', fontWeight: 'bold' },
 })
