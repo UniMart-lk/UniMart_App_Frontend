@@ -312,7 +312,8 @@ const styles = StyleSheet.create({
 
   productGridContainer:{
     flex:10,
-    marginHorizontal: 15
+    marginHorizontal: 15,
+     marginBottom: 10
   },
 
   cardContainer: {
@@ -411,15 +412,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     paddingTop: 10,
-    paddingHorizontal:15
+    paddingHorizontal:15,
   },
 
   navItem: { 
     flex: 1, 
     alignItems: 'center', 
     justifyContent: 'center',
-    borderWidth:1,
-    borderColor:'red' 
+   
   },
 
   activeIconBg: {
