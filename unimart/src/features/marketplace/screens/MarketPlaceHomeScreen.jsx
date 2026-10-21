@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'reac
 import React from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScrollView } from 'react-native';
 import { FlatList } from 'react-native';
 
@@ -83,8 +83,7 @@ const renderProduct = ({ item }) => (
 
         {/* Provider Badge */}
         <View style={[styles.providerBadge, item.providerType === 'external' ? styles.bgTeal : styles.bgPurple]}>
-          <Text style={styles.providerIcon}>{item.providerType === 'external' ? '🌐' : '🎓'}</Text>
-          <Text style={styles.providerIcon}>{item.providerType === 'external' ? '🏪' : '🎒'}</Text>
+          <Text style={styles.providerIcon}>{item.providerType === 'external' ? <MaterialCommunityIcons name="earth" size={12} color="#FFFFFF" /> : <Ionicons name="school" size={12} color="#FFFFFF" />}</Text>
         </View>
       </View>
     </TouchableOpacity>
