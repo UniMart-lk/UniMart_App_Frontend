@@ -76,7 +76,8 @@ const renderProduct = ({ item }) => (
         <Text style={styles.productPrice}>{item.price}</Text>
         
         <View style={styles.locationRow}>
-          <Text style={styles.locationIcon}>📍</Text>
+          <Ionicons name="location" size={12} color="#EF4444" style={{ marginRight: 4 }} 
+  />
           <Text style={styles.locationText} numberOfLines={1}>{item.location}</Text>
         </View>
 
