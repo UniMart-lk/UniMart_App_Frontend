@@ -158,12 +158,14 @@ const renderProduct = ({ item }) => (
 
        {/* 5. BOTTOM NAVIGATION */}
       <View style={styles.bottomNavConatiner}>
+
         <TouchableOpacity style={styles.navItem}>
           <Text style={styles.navIcon}>🏠</Text>
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
+        
         <TouchableOpacity style={styles.navItem}>
-          <Text style={[styles.navIcon, { tintColor: '#2563EB' }]}>🏪</Text>
+          <Text style={[styles.navIcon, { tintColor: '#414141' }]}>🏪</Text>
           <Text style={[styles.navText, { color: '#2563EB', fontWeight: 'bold' }]}>Marketplace</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem}>
@@ -369,7 +371,7 @@ const styles = StyleSheet.create({
   bgPurple: { backgroundColor: '#8B5CF6' },
   bgTeal: { backgroundColor: '#06B6D4' },
 
-    fab: {
+  fab: {
     position: 'absolute',
     bottom: 15, // Above bottom nav
     right: 15,
@@ -385,6 +387,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 6,
   },
+
   fabIcon: { fontSize: 28, color: '#FFFFFF', marginTop: -2 },
 
   bottomNavConatiner:{
@@ -396,7 +399,14 @@ const styles = StyleSheet.create({
     paddingHorizontal:15
   },
 
-  navItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  navItem: { 
+    flex: 1, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    borderWidth:1,
+    borderColor:'red' 
+  },
+
   navIcon: { fontSize: 22, marginBottom: 4, color: '#94A3B8' },
 
   navText: { fontSize: 12, color: '#0F172A', fontWeight: '500' },
