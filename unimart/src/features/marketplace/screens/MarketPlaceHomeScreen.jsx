@@ -149,12 +149,10 @@ const renderProduct = ({ item }) => (
          columnWrapperStyle={styles.row}
          showsVerticalScrollIndicator={false}
          contentContainerStyle={{ paddingBottom: 15 }} />
-      </View>
 
-      {/* 4. FLOATING ACTION BUTTON (FAB) */}
-      <View style={styles.fabContainer}>
-        <TouchableOpacity>
-          <Text>FLOATING ACTION BUTTON </Text>
+        {/* 4. FLOATING ACTION BUTTON (FAB) */}
+        <TouchableOpacity style={styles.fab}>
+          <Ionicons name="add" size={32} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -351,9 +349,23 @@ const styles = StyleSheet.create({
   bgPurple: { backgroundColor: '#8B5CF6' },
   bgTeal: { backgroundColor: '#06B6D4' },
 
-  fabContainer:{
-    flex:1
+    fab: {
+    position: 'absolute',
+    bottom: 15, // Above bottom nav
+    right: 15,
+    width: 40,
+    height: 40,
+    borderRadius: 28,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
   },
+  fabIcon: { fontSize: 28, color: '#FFFFFF', marginTop: -2 },
 
   bottomNavConatiner:{
     flex:1
