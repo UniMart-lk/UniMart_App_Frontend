@@ -275,7 +275,9 @@ const styles = StyleSheet.create({
 
   productGridContainer:{
     flex:10,
-    marginHorizontal: 15
+    marginHorizontal: 15,
+    borderWidth:1,
+    borderColor: 'red'
   },
 
   cardContainer: {
@@ -330,11 +332,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   cardDetails: { padding: 12 },
   productTitle: { fontSize: 14, fontWeight: '500', color: '#0F172A', marginBottom: 4, minHeight: 40 },
   productPrice: { fontSize: 15, fontWeight: '700', color: '#2563EB', marginBottom: 8 },
   locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  locationIcon: { fontSize: 10, marginRight: 4 },
   locationText: { fontSize: 11, color: '#64748B', flex: 1 },
   
   providerBadge: {
@@ -348,7 +350,6 @@ const styles = StyleSheet.create({
   },
   bgPurple: { backgroundColor: '#8B5CF6' },
   bgTeal: { backgroundColor: '#06B6D4' },
-  providerIcon: { fontSize: 10, color: '#FFFFFF' },
 
   fabContainer:{
     flex:1
