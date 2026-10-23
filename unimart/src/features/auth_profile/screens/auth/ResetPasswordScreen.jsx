@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import authService from '@/services/authService';
 
 export default function ResetPasswordScreen({ navigation } = {}) {
   const insets = useSafeAreaInsets();
@@ -34,6 +35,7 @@ export default function ResetPasswordScreen({ navigation } = {}) {
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const [resetToken, setResetToken] = useState('');
 
   // UI States
   const [focusedField, setFocusedField] = useState(null);
@@ -99,8 +101,8 @@ export default function ResetPasswordScreen({ navigation } = {}) {
     }
   };
 
-  // Step 1: Send verification code
-  const handleSendCode = () => {
+  // Step 1: Send verification code via backend
+  const handleSendCode = async () => {
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
       setErrorMessage('Please enter your email address.');
@@ -115,20 +117,39 @@ export default function ResetPasswordScreen({ navigation } = {}) {
     setErrorMessage('');
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const res = await authService.forgotPassword(trimmedEmail);
       setResendSeconds(60);
       setCodeExpirySeconds(600);
+      if (res?.data?.devCode) {
+        console.log(`[DEV OTP]: ${res.data.devCode}`);
+      }
       setStep(2);
-    }, 600);
+    } catch (error) {
+      setErrorMessage(error.message || 'Failed to send verification code. Please check your email.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Resend code handler
-  const handleResendCode = () => {
+  const handleResendCode = async () => {
     if (resendSeconds > 0) return;
-    setResendSeconds(60);
-    setCodeExpirySeconds(600);
     setErrorMessage('');
+    setLoading(true);
+
+    try {
+      const res = await authService.forgotPassword(email.trim());
+      setResendSeconds(60);
+      setCodeExpirySeconds(600);
+      if (res?.data?.devCode) {
+        console.log(`[DEV OTP Resent]: ${res.data.devCode}`);
+      }
+    } catch (error) {
+      setErrorMessage(error.message || 'Failed to resend verification code.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Step 3: Handle OTP digit input
@@ -163,8 +184,8 @@ export default function ResetPasswordScreen({ navigation } = {}) {
     }
   };
 
-  // Step 3: Verify OTP Code
-  const handleVerifyOtp = () => {
+  // Step 3: Verify OTP Code via backend
+  const handleVerifyOtp = async () => {
     const code = otp.join('');
     if (code.length < 6) {
       setErrorMessage('Please enter the complete 6-digit verification code.');
@@ -174,17 +195,24 @@ export default function ResetPasswordScreen({ navigation } = {}) {
     setErrorMessage('');
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const res = await authService.verifyResetCode(email.trim(), code);
+      if (res?.data?.resetToken) {
+        setResetToken(res.data.resetToken);
+      }
       setStep(4);
-    }, 600);
+    } catch (error) {
+      setErrorMessage(error.message || 'Invalid or expired verification code.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Step 4: Reset Password
+  // Step 4: Reset Password via backend
   const hasMinLength = newPassword.length >= 8;
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmNewPassword;
 
-  const handleResetPassword = () => {
+  const handleResetPassword = async () => {
     if (!newPassword) {
       setErrorMessage('Please enter a new password.');
       return;
@@ -201,10 +229,19 @@ export default function ResetPasswordScreen({ navigation } = {}) {
     setErrorMessage('');
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await authService.resetPassword({
+        email: email.trim(),
+        newPassword,
+        resetToken,
+        code: otp.join(''),
+      });
       setStep(5);
-    }, 700);
+    } catch (error) {
+      setErrorMessage(error.message || 'Failed to reset password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
