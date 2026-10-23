@@ -5,6 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getRentalFeed } from '../services/rentalService';
 import RentalCard from '../components/RentalCard';
 
+// Defined outside the component so FlatList receives the same function on every render
+const keyExtractor = (item) => String(item.id);
+
 export default function RentalFeedScreen() {
   const insets = useSafeAreaInsets();
 
@@ -16,6 +19,8 @@ export default function RentalFeedScreen() {
   const hasMore = nextCursor !== null;
   // Drives the pagination footer (the ref below is the request guard)
   const [loadingMore, setLoadingMore] = useState(false);
+  // Message shown in the footer when the next page fails; the rentals already loaded stay visible
+  const [loadMoreError, setLoadMoreError] = useState(null);
   // Pull-to-refresh indicator, kept separate from the full-screen initial loading state
   const [refreshing, setRefreshing] = useState(false);
   // Non-blocking message shown above the list when a refresh fails
@@ -39,6 +44,7 @@ export default function RentalFeedScreen() {
     isRefreshing.current = false;
     lastLoadedCursor.current = null;
     setLoadingMore(false);
+    setLoadMoreError(null);
     setRefreshing(false);
     setRefreshError(null);
     setLoading(true);
@@ -74,6 +80,7 @@ export default function RentalFeedScreen() {
     isLoadingMore.current = false;
     lastLoadedCursor.current = null;
     setLoadingMore(false);
+    setLoadMoreError(null);
     setRefreshing(true);
     setRefreshError(null);
 
@@ -123,10 +130,14 @@ export default function RentalFeedScreen() {
         setRentals((current) => [...current, ...nextPage]);
         // Stop paging on an empty page or a cursor that did not move, to avoid a request loop
         setNextCursor(nextPage.length === 0 || newCursor === cursor ? null : newCursor);
+        setLoadMoreError(null);
       }
     } catch (err) {
-      // Keep the loaded rentals and the cursor so this page can be requested again
+      // Keep the loaded rentals and the cursor so Retry requests this same page again
       console.warn('Failed to load more rentals:', err?.message);
+      if (requestId === latestRequestId.current) {
+        setLoadMoreError(err?.message || 'Something went wrong while loading more rentals.');
+      }
     } finally {
       if (requestId === latestRequestId.current) {
         isLoadingMore.current = false;
@@ -134,6 +145,13 @@ export default function RentalFeedScreen() {
       }
     }
   }, [loading, error, hasMore, nextCursor]);
+
+  // While a page error is shown, scrolling does not retry on its own; the footer Retry button does
+  const handleEndReached = useCallback(() => {
+    if (!loadMoreError) {
+      loadMoreRentals();
+    }
+  }, [loadMoreError, loadMoreRentals]);
 
   useEffect(() => {
     loadRentals();
@@ -179,7 +197,7 @@ export default function RentalFeedScreen() {
         ) : null}
         <FlatList
           data={rentals}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={keyExtractor}
           renderItem={renderItem}
           contentContainerStyle={[
             styles.listContent,
@@ -187,17 +205,32 @@ export default function RentalFeedScreen() {
             rentals.length === 0 && styles.listContentEmpty,
           ]}
           ListEmptyComponent={<Text style={styles.statusText}>No rentals available</Text>}
+          // Rendering performance: keep ~5 screens of cards mounted and render new cards 5 at a time
+          windowSize={5}
+          maxToRenderPerBatch={5}
           // Pull-to-refresh: reload the first page and replace the list
           refreshing={refreshing}
           onRefresh={refreshRentals}
           // Infinite scroll: request the next page when within half a screen of the end
-          onEndReached={loadMoreRentals}
+          onEndReached={handleEndReached}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             loadingMore ? (
               <View style={styles.footer}>
                 <ActivityIndicator size="small" color="#2563EB" />
                 <Text style={styles.footerText}>Loading more rentals...</Text>
+              </View>
+            ) : loadMoreError ? (
+              <View style={styles.footerError} accessibilityRole="alert">
+                <Text style={styles.footerErrorText}>{`Couldn't load more rentals. ${loadMoreError}`}</Text>
+                <Pressable
+                  style={({ pressed }) => [styles.footerRetryButton, pressed && styles.retryButtonPressed]}
+                  onPress={() => loadMoreRentals()}
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry loading more rentals"
+                >
+                  <Text style={styles.footerRetryButtonText}>Retry</Text>
+                </Pressable>
               </View>
             ) : null
           }
@@ -271,6 +304,28 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 13,
     color: '#64748B',
+  },
+  footerError: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+  },
+  footerErrorText: {
+    fontSize: 13,
+    color: '#B91C1C',
+    textAlign: 'center',
+  },
+  footerRetryButton: {
+    marginTop: 10,
+    backgroundColor: '#2563EB',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+  },
+  footerRetryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   centered: {
     flex: 1,
