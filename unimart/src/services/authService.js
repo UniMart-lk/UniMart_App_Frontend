@@ -108,6 +108,63 @@ export const authService = {
   },
 
   /**
+   * Request 6-digit password reset code
+   * @param {string} email
+   */
+  async forgotPassword(email) {
+    const trimmedEmail = email?.trim();
+    if (!trimmedEmail) {
+      throw new Error('Please enter your email address.');
+    }
+
+    return await apiRequest('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email: trimmedEmail }),
+    });
+  },
+
+  /**
+   * Verify 6-digit password reset OTP
+   * @param {string} email
+   * @param {string} code
+   */
+  async verifyResetCode(email, code) {
+    const trimmedEmail = email?.trim();
+    const trimmedCode = code?.trim();
+
+    if (!trimmedEmail || !trimmedCode) {
+      throw new Error('Email and verification code are required.');
+    }
+
+    return await apiRequest('/auth/verify-reset-code', {
+      method: 'POST',
+      body: JSON.stringify({ email: trimmedEmail, code: trimmedCode }),
+    });
+  },
+
+  /**
+   * Reset password with verified code/token
+   * @param {object} param - { email, newPassword, resetToken, code }
+   */
+  async resetPassword({ email, newPassword, resetToken, code }) {
+    const trimmedEmail = email?.trim();
+
+    if (!trimmedEmail || !newPassword) {
+      throw new Error('Email and new password are required.');
+    }
+
+    return await apiRequest('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: trimmedEmail,
+        newPassword,
+        resetToken,
+        code,
+      }),
+    });
+  },
+
+  /**
    * Log out and clear local credentials
    */
   async logout() {
