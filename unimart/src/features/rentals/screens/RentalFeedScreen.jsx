@@ -16,6 +16,10 @@ export default function RentalFeedScreen() {
   const hasMore = nextCursor !== null;
   // Drives the pagination footer (the ref below is the request guard)
   const [loadingMore, setLoadingMore] = useState(false);
+  // Pull-to-refresh indicator, kept separate from the full-screen initial loading state
+  const [refreshing, setRefreshing] = useState(false);
+  // Non-blocking message shown above the list when a refresh fails
+  const [refreshError, setRefreshError] = useState(null);
 
   // Each request gets an id; only the latest request may update state.
   // Bumping the id on unmount makes any in-flight request outdated.
@@ -25,13 +29,18 @@ export default function RentalFeedScreen() {
   // Cursor of the last page that loaded successfully. An onEndReached from the previous
   // render can still hold that cursor until React re-renders, so it must not be requested twice.
   const lastLoadedCursor = useRef(null);
+  // Synchronous guard so repeated pulls never start concurrent first-page refreshes
+  const isRefreshing = useRef(false);
 
   const loadRentals = useCallback(async () => {
     const requestId = ++latestRequestId.current;
-    // A first-page (re)load replaces the list, so any next-page request in flight is now outdated
+    // A first-page (re)load replaces the list, so any next-page or refresh request in flight is now outdated
     isLoadingMore.current = false;
+    isRefreshing.current = false;
     lastLoadedCursor.current = null;
     setLoadingMore(false);
+    setRefreshing(false);
+    setRefreshError(null);
     setLoading(true);
     setError(null);
 
@@ -53,8 +62,50 @@ export default function RentalFeedScreen() {
     }
   }, []);
 
+  const refreshRentals = useCallback(async () => {
+    if (loading || isRefreshing.current) {
+      return;
+    }
+
+    const requestId = ++latestRequestId.current;
+    // The refreshed first page replaces the list, so any next-page request in flight is now outdated
+    // and previously loaded cursors may be requested again
+    isRefreshing.current = true;
+    isLoadingMore.current = false;
+    lastLoadedCursor.current = null;
+    setLoadingMore(false);
+    setRefreshing(true);
+    setRefreshError(null);
+
+    try {
+      const { rentals: firstPage, nextCursor: firstCursor } = await getRentalFeed();
+
+      if (requestId === latestRequestId.current) {
+        setRentals(firstPage);
+        setNextCursor(firstPage.length > 0 ? firstCursor : null);
+      }
+    } catch (err) {
+      // Keep the rentals already on screen; only report that the refresh failed
+      if (requestId === latestRequestId.current) {
+        setRefreshError(err?.message || 'Something went wrong while refreshing rentals.');
+      }
+    } finally {
+      if (requestId === latestRequestId.current) {
+        isRefreshing.current = false;
+        setRefreshing(false);
+      }
+    }
+  }, [loading]);
+
   const loadMoreRentals = useCallback(async () => {
-    if (loading || error || !hasMore || isLoadingMore.current || nextCursor === lastLoadedCursor.current) {
+    if (
+      loading ||
+      error ||
+      !hasMore ||
+      isRefreshing.current ||
+      isLoadingMore.current ||
+      nextCursor === lastLoadedCursor.current
+    ) {
       return;
     }
 
@@ -120,28 +171,38 @@ export default function RentalFeedScreen() {
     );
   } else {
     content = (
-      <FlatList
-        data={rentals}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={renderItem}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: Math.max(insets.bottom, 16) },
-          rentals.length === 0 && styles.listContentEmpty,
-        ]}
-        ListEmptyComponent={<Text style={styles.statusText}>No rentals available</Text>}
-        // Infinite scroll: request the next page when within half a screen of the end
-        onEndReached={loadMoreRentals}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={
-          loadingMore ? (
-            <View style={styles.footer}>
-              <ActivityIndicator size="small" color="#2563EB" />
-              <Text style={styles.footerText}>Loading more rentals...</Text>
-            </View>
-          ) : null
-        }
-      />
+      <>
+        {refreshError ? (
+          <View style={styles.refreshErrorBanner} accessibilityRole="alert">
+            <Text style={styles.refreshErrorText}>{`Couldn't refresh rentals. ${refreshError}`}</Text>
+          </View>
+        ) : null}
+        <FlatList
+          data={rentals}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderItem}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: Math.max(insets.bottom, 16) },
+            rentals.length === 0 && styles.listContentEmpty,
+          ]}
+          ListEmptyComponent={<Text style={styles.statusText}>No rentals available</Text>}
+          // Pull-to-refresh: reload the first page and replace the list
+          refreshing={refreshing}
+          onRefresh={refreshRentals}
+          // Infinite scroll: request the next page when within half a screen of the end
+          onEndReached={loadMoreRentals}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footer}>
+                <ActivityIndicator size="small" color="#2563EB" />
+                <Text style={styles.footerText}>Loading more rentals...</Text>
+              </View>
+            ) : null
+          }
+        />
+      </>
     );
   }
 
@@ -187,6 +248,18 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  refreshErrorBanner: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+  },
+  refreshErrorText: {
+    fontSize: 13,
+    color: '#B91C1C',
   },
   footer: {
     flexDirection: 'row',
