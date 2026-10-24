@@ -20,6 +20,7 @@ const products = [
     location: 'Sabaragamuwa Uni',
     providerType: 'student', // 'student' or 'external',
     rating: '4.8', 
+    category: 'Books',
     image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&q=80',
   },
   {
@@ -29,7 +30,8 @@ const products = [
     condition: 'Good',
     location: 'Kandy',
     providerType: 'external',
-    rating: '4.8', 
+    rating: '4.9', 
+    category: 'Electronics',
     image: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&q=80',
   },
   {
@@ -39,7 +41,8 @@ const products = [
     condition: 'Used',
     location: 'Belihuloya',
     providerType: 'student',
-    rating: '4.8', 
+    rating: '4.5', 
+    category: 'Furniture',
     image: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=600&q=80',
   },
   {
@@ -50,6 +53,7 @@ const products = [
     location: 'Balangoda',
     providerType: 'student',
     rating: '4.8', 
+    category: 'Bicycles',
     image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=600&q=80',
   },
 ];
@@ -58,6 +62,11 @@ export default function MarketplaceHomeScreen() {
 
 const [activeCategory, setActiveCategory] = React.useState('All');
 const [activeTab, setActiveTab] = React.useState('marketplace'); // Default to marketplace
+const [userRole, setUserRole] = React.useState('provider');
+  const filteredProducts = products.filter((product) => {
+    if (activeCategory === 'All') return true;
+    return product.category === activeCategory;
+  });
 
   return (
    <SafeAreaView style={styles.safeArea}>
@@ -102,7 +111,7 @@ const [activeTab, setActiveTab] = React.useState('marketplace'); // Default to m
 
        {/* Results & Sort */}
       <View style={styles.resultsAndSortContainer}>
-        <Text style={styles.result}>1234 results</Text>
+        <Text style={styles.result}>results: {filteredProducts.length} </Text>
         <TouchableOpacity style={styles.sortbtn}>
           <Text style={styles.sortText}>Sort: Newest</Text>
           <Ionicons name="caret-down" size={15} color="#2563EB" />
@@ -112,7 +121,7 @@ const [activeTab, setActiveTab] = React.useState('marketplace'); // Default to m
       {/* 3. PRODUCT GRID */}
       <View style={styles.productGridContainer}>
         <FlatList 
-         data={products}
+         data={filteredProducts}
          renderItem={({ item }) => <ProductCard item={item} />}
          keyExtractor={(item) => item.id}
          numColumns={2}
@@ -121,9 +130,11 @@ const [activeTab, setActiveTab] = React.useState('marketplace'); // Default to m
          contentContainerStyle={{ paddingBottom: 15 }} />
 
         {/* 4. FLOATING ACTION BUTTON (FAB) */}
-        <TouchableOpacity style={styles.fab}>
-          <Ionicons name="add" size={30} color="#FFFFFF" />
-        </TouchableOpacity>
+       {userRole === 'provider' && (
+          <TouchableOpacity style={styles.fab}>
+            <Ionicons name="add" size={30} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </View>
 
        {/* 5. BOTTOM NAVIGATION */}
