@@ -130,7 +130,7 @@ const displayProducts = getProcessedProducts();
             value={searchQuery}
             onChangeText={(text) => setSearchQuery(text)}
           />
-          {/* 👇 ADDED CLEAR BUTTON */}
+          {/* CLEAR BUTTON */}
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
               <Ionicons name="close-circle" size={18} color="#94A3B8" />
@@ -268,14 +268,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    flex: 1, // 👈 Added flex: 1 so the container fills the space
+    flex: 1, 
     color:"#0F172A8D"
   },
 
   placeholder:{
       fontSize: 15, 
-      flex: 1, // 👈 Changed from width: '83%' to flex: 1 to push the X button to the right
-      paddingVertical: 0, // Keeps text vertically centered on Android
+      flex: 1,
+      paddingVertical: 0, 
   },
 
   chipScroll: { 

@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function ProductCard({ item }) {
+      const [isFavorite, setIsFavorite] = useState(false);
+
   return (
    <TouchableOpacity style={styles.cardContainer}>
          {/* Image & Badges */}
@@ -15,9 +17,17 @@ export default function ProductCard({ item }) {
            </View>
    
            {/* Heart Icon (Mock) */}
-           <View style={styles.heartIcon}>
-             <Ionicons name="heart-outline" size={15} color="#0F172A" />
-           </View>
+           <TouchableOpacity 
+             style={styles.heartIcon}
+             onPress={() => setIsFavorite(!isFavorite)}
+             activeOpacity={0.7}
+           >
+             <Ionicons 
+               name={isFavorite ? "heart" : "heart-outline"} 
+               size={15}
+               color={isFavorite ? "#EF4444" : "#0F172A"} 
+             />
+           </TouchableOpacity>
          </View>
    
          {/* Details */}
@@ -111,7 +121,7 @@ const styles = StyleSheet.create({
  footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between', // Pushes badge to left, rating to right
+    justifyContent: 'space-between',
   },
   
   providerBadge: {
@@ -132,7 +142,7 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B', // Matching the gray text from your image
+    color: '#64748B', 
   },
 
 
