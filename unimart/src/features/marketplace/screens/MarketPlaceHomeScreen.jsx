@@ -192,8 +192,8 @@ const renderProduct = ({ item }) => (
           <Text style={[styles.navText, activeTab === 'messages' && styles.navTextActive]}>Messages</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('person')}>
-           <View style={activeTab === 'person' ? styles.activeIconBg : styles.inactiveIconBg}>
+        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('profile')}>
+           <View style={activeTab === 'profile' ? styles.activeIconBg : styles.inactiveIconBg}>
                 <Ionicons name="person" size={24} color={activeTab === 'person' ? '#2563EB' : '#64748B'} />
            </View>
           <Text style={[styles.navText, activeTab === 'person' && styles.navTextActive]}>Profile</Text>
