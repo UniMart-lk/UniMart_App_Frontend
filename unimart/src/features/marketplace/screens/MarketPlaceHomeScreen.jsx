@@ -16,7 +16,7 @@ const products = [
     id: '1',
     title: 'Calculus Textbook',
     price: 'LKR 1,500',
-    numericPrice: 1500, // Added for sorting
+    numericPrice: 1500,
     condition: 'Like New',
     location: 'Sabaragamuwa Uni',
     providerType: 'student',
@@ -28,7 +28,7 @@ const products = [
     id: '2',
     title: 'iPhone 11 64GB',
     price: 'LKR 85,000',
-    numericPrice: 85000, // Added for sorting
+    numericPrice: 85000,
     condition: 'Good',
     location: 'Kandy',
     providerType: 'external',
@@ -40,7 +40,7 @@ const products = [
     id: '3',
     title: 'Wooden Study Table',
     price: 'LKR 8,500',
-    numericPrice: 8500, // Added for sorting
+    numericPrice: 8500,
     condition: 'Used',
     location: 'Belihuloya',
     providerType: 'student',
@@ -52,11 +52,11 @@ const products = [
     id: '4',
     title: 'Mountain Bike',
     price: 'LKR 22,000',
-    numericPrice: 22000, // Added for sorting
+    numericPrice: 22000,
     condition: 'Like New',
     location: 'Balangoda',
     providerType: 'student',
-    category: 'Furniture', // Assuming this based on your previous code
+    category: 'Furniture',
     rating: '4.8', 
     image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=600&q=80',
   },
@@ -65,22 +65,30 @@ const products = [
 export default function MarketplaceHomeScreen() {
 
 const [activeCategory, setActiveCategory] = React.useState('All');
-const [activeTab, setActiveTab] = React.useState('marketplace'); // Default to marketplace
+const [activeTab, setActiveTab] = React.useState('marketplace'); 
 const [userRole, setUserRole] = React.useState('provider');
 const [sortOption, setSortOption] = React.useState('Newest');
 const [isDropdownVisible, setIsDropdownVisible] = React.useState(false);
+const [searchQuery, setSearchQuery] = React.useState('');
 
 const sortOptions = ['Newest', 'Price: Low to High', 'Price: High to Low', 'Highest Rated'];
 
 // --- FILTER AND SORT LOGIC ---
 const getProcessedProducts = () => {
-  // 1. Filter
+  // 1. Filter by Category
   let filtered = products.filter((product) => {
     if (activeCategory === 'All') return true;
     return product.category === activeCategory;
   });
 
-  // 2. Sort
+  // 2. Filter by Search Query (Case-insensitive)
+  if (searchQuery.trim() !== '') {
+    filtered = filtered.filter((product) => 
+      product.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
+    );
+  }
+
+  // 3. Sort
   if (sortOption === 'Price: Low to High') {
     filtered.sort((a, b) => a.numericPrice - b.numericPrice);
   } else if (sortOption === 'Price: High to Low') {
@@ -116,7 +124,18 @@ const displayProducts = getProcessedProducts();
       <View style={styles.searchBarContainer}>
         <View style={styles.placeholderContainer}>
           <Ionicons name='search-outline' size={20} color="#0F172A8D" />
-          <TextInput placeholder="Search Products..." style={styles.placeholder} />
+          <TextInput 
+            placeholder="Search Products..." 
+            style={styles.placeholder}
+            value={searchQuery}
+            onChangeText={(text) => setSearchQuery(text)}
+          />
+          {/* 👇 ADDED CLEAR BUTTON */}
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          )}
         </View>
 
         <TouchableOpacity>
@@ -153,7 +172,13 @@ const displayProducts = getProcessedProducts();
          numColumns={2}
          columnWrapperStyle={styles.row}
          showsVerticalScrollIndicator={false}
-         contentContainerStyle={{ paddingBottom: 80 }} />
+         contentContainerStyle={{ paddingBottom: 80 }} 
+         ListEmptyComponent={
+           <View style={{ alignItems: 'center', marginTop: 40 }}>
+             <Text style={{ fontSize: 16, color: '#64748B' }}>No products found.</Text>
+           </View>
+         }
+        />
 
         {/* 4. FLOATING ACTION BUTTON (FAB) */}
        {userRole === 'provider' && (
@@ -243,20 +268,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1, // 👈 Added flex: 1 so the container fills the space
     color:"#0F172A8D"
-    
   },
 
   placeholder:{
       fontSize: 15, 
-      width:'83%', 
+      flex: 1, // 👈 Changed from width: '83%' to flex: 1 to push the X button to the right
+      paddingVertical: 0, // Keeps text vertically centered on Android
   },
 
   chipScroll: { 
     marginHorizontal: 15,
     marginBottom: 20,
     flexGrow: 0
-    
   },
 
   chipContainer: { 
@@ -305,7 +330,6 @@ const styles = StyleSheet.create({
     flexDirection:'row',
     alignItems:'center',
     gap: 5
-
   },
 
   sortText:{
@@ -343,14 +367,13 @@ const styles = StyleSheet.create({
 
   fabIcon: { fontSize: 28, color: '#FFFFFF', marginTop: -2 },
 
-  // --- NEW STYLES FOR DROPDOWN ---
   modalOverlay: {
     flex: 1,
     backgroundColor: 'transparent', 
   },
   dropdownMenu: {
     position: 'absolute',
-    top: 220, // Adjust this to position it exactly below your Sort button
+    top: 220, 
     right: 15, 
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
