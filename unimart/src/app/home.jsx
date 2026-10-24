@@ -52,6 +52,10 @@ export default function HomeScreen() {
     }
   };
 
+  const handleBrowseRentals = () => {
+    router.push('/rentals');
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 20) }]}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
@@ -113,15 +117,29 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* Logout Action */}
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={handleLogout}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="log-out-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-        <Text style={styles.logoutButtonText}>Log Out</Text>
-      </TouchableOpacity>
+      <View>
+        {/* Rentals Entry Point */}
+        <TouchableOpacity
+          style={styles.rentalsButton}
+          onPress={handleBrowseRentals}
+          activeOpacity={0.85}
+          accessibilityLabel="Browse rentals"
+          accessibilityRole="button"
+        >
+          <Ionicons name="car-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.rentalsButtonText}>Browse Rentals</Text>
+        </TouchableOpacity>
+
+        {/* Logout Action */}
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={handleLogout}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="log-out-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.logoutButtonText}>Log Out</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -232,6 +250,20 @@ const styles = StyleSheet.create({
     color: '#15803D',
     fontWeight: '500',
     flex: 1,
+  },
+  rentalsButton: {
+    backgroundColor: '#2563EB',
+    height: 50,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  rentalsButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   logoutButton: {
     backgroundColor: '#EF4444',
