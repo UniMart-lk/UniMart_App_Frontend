@@ -4,14 +4,22 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getRentalFeed } from '../services/rentalService';
 import RentalCard from '../components/RentalCard';
+import RentalMap from '../components/RentalMap';
 
 // Defined outside the component so FlatList receives the same function on every render
 const keyExtractor = (item) => String(item.id);
+
+const VIEW_OPTIONS = [
+  { value: 'list', label: 'List View' },
+  { value: 'map', label: 'Map View' },
+];
 
 export default function RentalFeedScreen() {
   const insets = useSafeAreaInsets();
 
   const [rentals, setRentals] = useState([]);
+  // 'list' (default) or 'map'; both views show the same loaded rentals
+  const [viewMode, setViewMode] = useState('list');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   // Cursor for the next page; null means there are no more pages
@@ -163,6 +171,12 @@ export default function RentalFeedScreen() {
 
   const renderItem = useCallback(({ item }) => <RentalCard item={item} />, []);
 
+  const refreshErrorBanner = refreshError ? (
+    <View style={styles.refreshErrorBanner} accessibilityRole="alert">
+      <Text style={styles.refreshErrorText}>{`Couldn't refresh rentals. ${refreshError}`}</Text>
+    </View>
+  ) : null;
+
   let content;
 
   if (loading) {
@@ -187,14 +201,18 @@ export default function RentalFeedScreen() {
         </Pressable>
       </View>
     );
+  } else if (viewMode === 'map') {
+    // Map of the rentals loaded so far; loading, error and refresh states stay shared with the list
+    content = (
+      <>
+        {refreshErrorBanner}
+        <RentalMap rentals={rentals} style={[styles.map, { marginBottom: Math.max(insets.bottom, 16) }]} />
+      </>
+    );
   } else {
     content = (
       <>
-        {refreshError ? (
-          <View style={styles.refreshErrorBanner} accessibilityRole="alert">
-            <Text style={styles.refreshErrorText}>{`Couldn't refresh rentals. ${refreshError}`}</Text>
-          </View>
-        ) : null}
+        {refreshErrorBanner}
         <FlatList
           data={rentals}
           keyExtractor={keyExtractor}
@@ -246,6 +264,28 @@ export default function RentalFeedScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Rentals</Text>
         <Text style={styles.headerSubtitle}>Vehicles and equipment near your university</Text>
+
+        <View style={styles.viewToggle}>
+          {VIEW_OPTIONS.map((option) => {
+            const selected = viewMode === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                style={({ pressed }) => [
+                  styles.viewToggleButton,
+                  selected && styles.viewToggleButtonSelected,
+                  pressed && !selected && styles.viewToggleButtonPressed,
+                ]}
+                onPress={() => setViewMode(option.value)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`Show ${option.label}`}
+              >
+                <Text style={[styles.viewToggleText, selected && styles.viewToggleTextSelected]}>{option.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       {content}
@@ -273,6 +313,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#64748B',
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    marginTop: 12,
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: '#E2E8F0',
+  },
+  viewToggleButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  viewToggleButtonSelected: {
+    backgroundColor: '#FFFFFF',
+  },
+  viewToggleButtonPressed: {
+    opacity: 0.7,
+  },
+  viewToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  viewToggleTextSelected: {
+    color: '#2563EB',
+  },
+  map: {
+    marginHorizontal: 16,
+    borderRadius: 16,
   },
   listContent: {
     paddingTop: 4,
