@@ -201,19 +201,16 @@ export default function RentalFeedScreen() {
         </Pressable>
       </View>
     );
-  } else if (viewMode === 'map') {
-    // Map of the rentals loaded so far; loading, error and refresh states stay shared with the list
-    content = (
-      <>
-        {refreshErrorBanner}
-        <RentalMap rentals={rentals} style={[styles.map, { marginBottom: Math.max(insets.bottom, 16) }]} />
-      </>
-    );
   } else {
+    const isMapView = viewMode === 'map';
+
     content = (
       <>
         {refreshErrorBanner}
+        {/* The list stays mounted but hidden in Map View, so its scroll position and rendered cards survive
+            switching views. It keeps the same place in the tree in both views, so React never remounts it. */}
         <FlatList
+          style={isMapView ? styles.hidden : undefined}
           data={rentals}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
@@ -229,8 +226,9 @@ export default function RentalFeedScreen() {
           // Pull-to-refresh: reload the first page and replace the list
           refreshing={refreshing}
           onRefresh={refreshRentals}
-          // Infinite scroll: request the next page when within half a screen of the end
-          onEndReached={handleEndReached}
+          // Infinite scroll: request the next page when within half a screen of the end.
+          // Off while hidden: a hidden list measures 0 px tall and would otherwise load pages nobody sees.
+          onEndReached={isMapView ? undefined : handleEndReached}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             loadingMore ? (
@@ -253,6 +251,10 @@ export default function RentalFeedScreen() {
             ) : null
           }
         />
+        {/* Map of the rentals loaded so far; loading, error and refresh states stay shared with the list */}
+        {isMapView ? (
+          <RentalMap rentals={rentals} style={[styles.map, { marginBottom: Math.max(insets.bottom, 16) }]} />
+        ) : null}
       </>
     );
   }
@@ -344,6 +346,9 @@ const styles = StyleSheet.create({
   map: {
     marginHorizontal: 16,
     borderRadius: 16,
+  },
+  hidden: {
+    display: 'none',
   },
   listContent: {
     paddingTop: 4,
