@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import { formatRentalPrice } from './RentalCard';
 
 // Smallest zoom span so a single rental (or rentals at one spot) is not zoomed in to street level
@@ -47,7 +47,7 @@ export function getRentalCoordinate(rental) {
 /**
  * Keep only rentals that can be placed on the map
  * @param {object[]} rentals - rental feed items
- * @returns {{ id: string, title: string, description: string|undefined, coordinate: object, rental: object }[]}
+ * @returns {{ id: string, title: string, price: string|null, pickupLocation: string, coordinate: object, rental: object }[]}
  */
 export function getRentalLocations(rentals) {
   if (!Array.isArray(rentals)) {
@@ -70,14 +70,17 @@ export function getRentalLocations(rentals) {
     }
     seenIds.add(id);
 
-    const price = formatRentalPrice(rental.rentalPrice, rental.rentalPeriod);
+    const title = typeof rental.title === 'string' ? rental.title.trim() : '';
     const pickupLocation =
       typeof rental.vehicle?.pickupLocationName === 'string' ? rental.vehicle.pickupLocationName.trim() : '';
 
     locations.push({
       id,
-      title: rental.title?.trim() || 'Untitled rental',
-      description: [price, pickupLocation].filter(Boolean).join(' · ') || undefined,
+      title: title || 'Untitled rental',
+      // null when the price is missing or invalid; the callout shows a fallback
+      price: formatRentalPrice(rental.rentalPrice, rental.rentalPeriod),
+      // empty string when there is no pickup name; the callout hides that line
+      pickupLocation,
       coordinate,
       rental,
     });
@@ -128,6 +131,8 @@ function RentalMap({ rentals, onRentalPress, style }) {
     [locations]
   );
 
+  const hasPressHandler = typeof onRentalPress === 'function';
+
   if (locations.length === 0) {
     return (
       <View style={[styles.container, styles.emptyState, style]}>
@@ -150,10 +155,34 @@ function RentalMap({ rentals, onRentalPress, style }) {
           <Marker
             key={location.id}
             coordinate={location.coordinate}
-            title={location.title}
-            description={location.description}
-            onCalloutPress={typeof onRentalPress === 'function' ? () => onRentalPress(location.rental) : undefined}
-          />
+            // Tapping the pin opens the callout; tapping the callout selects the rental
+            onCalloutPress={hasPressHandler ? () => onRentalPress(location.rental) : undefined}
+          >
+            <Callout>
+              <View
+                style={styles.callout}
+                accessibilityLabel={`${location.title}, ${location.price ?? 'Price not available'}`}
+              >
+                <Text style={styles.calloutTitle} numberOfLines={2}>
+                  {location.title}
+                </Text>
+
+                {location.price ? (
+                  <Text style={styles.calloutPrice}>{location.price}</Text>
+                ) : (
+                  <Text style={styles.calloutPriceUnavailable}>Price not available</Text>
+                )}
+
+                {location.pickupLocation ? (
+                  <Text style={styles.calloutPickup} numberOfLines={2}>
+                    Pickup: {location.pickupLocation}
+                  </Text>
+                ) : null}
+
+                {hasPressHandler ? <Text style={styles.calloutAction}>Tap to view details</Text> : null}
+              </View>
+            </Callout>
+          </Marker>
         ))}
       </MapView>
     </View>
@@ -167,6 +196,39 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
     backgroundColor: '#F1F5F9',
+  },
+  // Fixed width: Android draws the callout as a snapshot and clips content sized to fit its text
+  callout: {
+    width: 220,
+    paddingVertical: 4,
+  },
+  calloutTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  calloutPrice: {
+    marginTop: 4,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  calloutPriceUnavailable: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#64748B',
+  },
+  calloutPickup: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#64748B',
+  },
+  calloutAction: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2563EB',
   },
   emptyState: {
     alignItems: 'center',
