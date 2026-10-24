@@ -10,6 +10,8 @@ const REGION_PADDING_FACTOR = 1.4;
 // Largest spans react-native-maps accepts for a region
 const MAX_LATITUDE_DELTA = 180;
 const MAX_LONGITUDE_DELTA = 360;
+// Duration of the camera move when the rental locations change
+const REGION_ANIMATION_MS = 500;
 
 // Plain decimal text such as "6.9271000", "-33.86" or "1e-7" (how a Prisma Decimal prints)
 const DECIMAL_PATTERN = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
@@ -156,6 +158,21 @@ export function getRegionForCoordinates(coordinates) {
 }
 
 /**
+ * Compare regions by value (rounded to ~10 cm) instead of by object identity
+ * @param {{ latitude: number, longitude: number, latitudeDelta: number, longitudeDelta: number }|null} region
+ * @returns {string|null}
+ */
+export function getRegionKey(region) {
+  if (!region) {
+    return null;
+  }
+
+  return [region.latitude, region.longitude, region.latitudeDelta, region.longitudeDelta]
+    .map((value) => value.toFixed(6))
+    .join('|');
+}
+
+/**
  * One rental pin with its callout
  * Memoized: re-renders only when its location object or the select handler changes
  * @param {object} props
@@ -206,11 +223,72 @@ const RentalMarker = React.memo(function RentalMarker({ location, onSelect }) {
 function RentalMap({ rentals, onRentalPress, style }) {
   const locations = useMemo(() => getRentalLocations(rentals), [rentals]);
 
-  // Fits the rentals present when the map first appears; the user can pan and zoom freely after that
-  const initialRegion = useMemo(
+  // Region that fits every valid rental; recalculated whenever the locations change
+  const region = useMemo(
     () => (locations.length > 0 ? getRegionForCoordinates(locations.map((location) => location.coordinate)) : null),
     [locations]
   );
+
+  const mapRef = useRef(null);
+  const isMapReady = useRef(false);
+  // Set once the user pans or zooms; from then on the viewport is theirs and is never reset
+  const userMovedMap = useRef(false);
+  // Region the map was last given by this component (initialRegion or animateToRegion)
+  const shownRegionKey = useRef(null);
+  const latestRegion = useRef(region);
+
+  const fitToRegion = useCallback((target) => {
+    if (!target || !isMapReady.current || userMovedMap.current) {
+      return;
+    }
+
+    const key = getRegionKey(target);
+    // New pins inside the current bounds give the same region, so the camera does not move
+    if (key === shownRegionKey.current) {
+      return;
+    }
+
+    shownRegionKey.current = key;
+    mapRef.current?.animateToRegion(target, REGION_ANIMATION_MS);
+  }, []);
+
+  useEffect(() => {
+    latestRegion.current = region;
+
+    if (!region) {
+      // The empty state replaces the map, so the next map starts fresh
+      isMapReady.current = false;
+      userMovedMap.current = false;
+      shownRegionKey.current = null;
+      return;
+    }
+
+    if (shownRegionKey.current === null) {
+      // Just mounted: initialRegion already shows this region
+      shownRegionKey.current = getRegionKey(region);
+      return;
+    }
+
+    fitToRegion(region);
+  }, [region, fitToRegion]);
+
+  // Locations can change before the native map is ready, when animateToRegion would be lost
+  const handleMapReady = useCallback(() => {
+    isMapReady.current = true;
+    fitToRegion(latestRegion.current);
+  }, [fitToRegion]);
+
+  // isGesture is false for this component's own animateToRegion, so only user moves count
+  // (reported by Google Maps, i.e. Android); onPanDrag also catches drags
+  const handleRegionChangeStart = useCallback((_region, details) => {
+    if (details?.isGesture) {
+      userMovedMap.current = true;
+    }
+  }, []);
+
+  const handlePanDrag = useCallback(() => {
+    userMovedMap.current = true;
+  }, []);
 
   const hasPressHandler = typeof onRentalPress === 'function';
 
@@ -239,10 +317,15 @@ function RentalMap({ rentals, onRentalPress, style }) {
   return (
     <View style={[styles.container, style]}>
       <MapView
+        ref={mapRef}
         style={StyleSheet.absoluteFill}
         // Google Maps on Android; iOS keeps Apple Maps, which needs no API key
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={initialRegion}
+        // Applied once when the map mounts; later location changes animate the camera instead
+        initialRegion={region}
+        onMapReady={handleMapReady}
+        onRegionChangeStart={handleRegionChangeStart}
+        onPanDrag={handlePanDrag}
         toolbarEnabled={false}
       >
         {locations.map((location) => (
