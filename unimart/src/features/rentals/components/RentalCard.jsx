@@ -87,10 +87,12 @@ function RentalCard({ item, onPress }) {
   // Unique per rental so a recycled card never flashes the previous rental's image
   const imageRecyclingKey = item?.id != null ? String(item.id) : imageUrl;
 
-  // Remember WHICH url failed (not just "failed"), so a recycled card showing a
-  // different rental never inherits the previous rental's error
-  const [failedImageUrl, setFailedImageUrl] = useState(null);
-  const showImage = imageUrl !== null && imageUrl !== failedImageUrl;
+  // Remember WHICH rental object and url failed (not just "failed"). A recycled card showing a different
+  // rental, a new url, or a refreshed rental (pull-to-refresh returns new objects) tries the image again;
+  // re-renders of the same rental do not, so a broken image never retries in a loop
+  const [failedImage, setFailedImage] = useState(null);
+  const imageFailed = failedImage !== null && failedImage.item === item && failedImage.url === imageUrl;
+  const showImage = imageUrl !== null && !imageFailed;
 
   const cardContent = (
     <>
@@ -102,7 +104,7 @@ function RentalCard({ item, onPress }) {
           cachePolicy="memory-disk"
           transition={200}
           recyclingKey={imageRecyclingKey}
-          onError={() => setFailedImageUrl(imageUrl)}
+          onError={() => setFailedImage({ item, url: imageUrl })}
         />
       ) : (
         <View style={[styles.image, styles.imagePlaceholder]}>
@@ -177,6 +179,8 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: 160,
+    // Shown while the image loads, then the image fades in over it (same colour as the no-image placeholder)
+    backgroundColor: '#F1F5F9',
   },
   imagePlaceholder: {
     backgroundColor: '#F1F5F9',
