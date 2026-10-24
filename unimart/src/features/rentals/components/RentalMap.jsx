@@ -257,6 +257,25 @@ function fromWorldPixels({ x, y }, zoom) {
   };
 }
 
+// Spread positions are recomputed on every pan, but a group's positions only change when its members or the
+// zoom change. Handing back the same object for the same position keeps the memoized RentalMarker from
+// re-rendering (and the native marker from being moved again) while the user pans.
+const spreadCoordinateCache = new Map();
+const SPREAD_CACHE_LIMIT = 500;
+
+function stableCoordinate(id, coordinate) {
+  const key = `${id}|${coordinate.latitude}|${coordinate.longitude}`;
+  const cached = spreadCoordinateCache.get(key);
+  if (cached) {
+    return cached;
+  }
+  if (spreadCoordinateCache.size >= SPREAD_CACHE_LIMIT) {
+    spreadCoordinateCache.clear();
+  }
+  spreadCoordinateCache.set(key, coordinate);
+  return coordinate;
+}
+
 /**
  * Display positions for single pins that would overlap on screen
  * Pins closer than MARKER_SPREAD_PX at this zoom are grouped and placed on a small circle around the group's
@@ -302,7 +321,10 @@ export function getSpreadCoordinates(locations, zoom) {
       const angle = (2 * Math.PI * k) / group.length - Math.PI / 2;
       spread.set(
         point.location.id,
-        fromWorldPixels({ x: centre.x + radius * Math.cos(angle), y: centre.y + radius * Math.sin(angle) }, zoom)
+        stableCoordinate(
+          point.location.id,
+          fromWorldPixels({ x: centre.x + radius * Math.cos(angle), y: centre.y + radius * Math.sin(angle) }, zoom)
+        )
       );
     });
   }
