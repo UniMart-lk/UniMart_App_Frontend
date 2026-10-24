@@ -48,7 +48,7 @@ const products = [
   },
 ];
 
-export default function MarketPlaceHomeScreen() {
+export default function MarketplaceHomeScreen() {
 
 const [activeCategory, setActiveCategory] = React.useState('All');
 const [activeTab, setActiveTab] = React.useState('marketplace'); // Default to marketplace
@@ -423,8 +423,8 @@ const styles = StyleSheet.create({
   },
 
   activeIconBg: {
-  backgroundColor: '#E0E7FF', // Light blue background for active tab
-  paddingHorizontal: 16,      // Makes it a pill shape
+  backgroundColor: '#E0E7FF', 
+  paddingHorizontal: 16,      
   paddingVertical: 5,
   borderRadius: 20,
 
@@ -455,6 +455,8 @@ inactiveIconBg: {
     height: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5, 
+    borderColor: '#FFFFFF'
   },
 
   navBadgeText: { fontSize: 9, color: '#FFFFFF', fontWeight: 'bold' },
