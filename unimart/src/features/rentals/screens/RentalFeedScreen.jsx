@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Pressable } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -171,6 +171,29 @@ export default function RentalFeedScreen() {
 
   const renderItem = useCallback(({ item }) => <RentalCard item={item} />, []);
 
+  const isMapView = viewMode === 'map';
+
+  // The map is created the first time Map View opens (list-only visits never load Google Maps),
+  // then stays mounted and hidden in List View so its pan and zoom survive switching
+  const [hasOpenedMap, setHasOpenedMap] = useState(false);
+  const selectView = useCallback((mode) => {
+    setViewMode(mode);
+    if (mode === 'map') {
+      setHasOpenedMap(true);
+    }
+  }, []);
+
+  // Rentals given to the map. While the map is hidden they stay as they were, so pages loaded in the list
+  // do not recluster or move a map nobody can see; it catches up when Map View opens again.
+  const [mapRentals, setMapRentals] = useState(rentals);
+  if (isMapView && mapRentals !== rentals) {
+    setMapRentals(rentals);
+  }
+
+  // Stable style arrays, so the memoized RentalMap skips re-rendering while its props are unchanged
+  const mapStyle = useMemo(() => [styles.map, { marginBottom: Math.max(insets.bottom, 16) }], [insets.bottom]);
+  const hiddenMapStyle = useMemo(() => [mapStyle, styles.hidden], [mapStyle]);
+
   const refreshErrorBanner = refreshError ? (
     <View style={styles.refreshErrorBanner} accessibilityRole="alert">
       <Text style={styles.refreshErrorText}>{`Couldn't refresh rentals. ${refreshError}`}</Text>
@@ -202,8 +225,6 @@ export default function RentalFeedScreen() {
       </View>
     );
   } else {
-    const isMapView = viewMode === 'map';
-
     content = (
       <>
         {refreshErrorBanner}
@@ -251,10 +272,9 @@ export default function RentalFeedScreen() {
             ) : null
           }
         />
-        {/* Map of the rentals loaded so far; loading, error and refresh states stay shared with the list */}
-        {isMapView ? (
-          <RentalMap rentals={rentals} style={[styles.map, { marginBottom: Math.max(insets.bottom, 16) }]} />
-        ) : null}
+        {/* Map of the rentals loaded so far; loading, error and refresh states stay shared with the list.
+            Hidden (not unmounted) in List View, in the same place in the tree, so the native map keeps its camera. */}
+        {hasOpenedMap ? <RentalMap rentals={mapRentals} style={isMapView ? mapStyle : hiddenMapStyle} /> : null}
       </>
     );
   }
@@ -278,7 +298,7 @@ export default function RentalFeedScreen() {
                   selected && styles.viewToggleButtonSelected,
                   pressed && !selected && styles.viewToggleButtonPressed,
                 ]}
-                onPress={() => setViewMode(option.value)}
+                onPress={() => selectView(option.value)}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
                 accessibilityLabel={`Show ${option.label}`}
