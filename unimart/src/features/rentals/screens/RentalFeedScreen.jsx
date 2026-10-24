@@ -1,17 +1,25 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Pressable } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getRentalFeed } from '../services/rentalService';
 import RentalCard from '../components/RentalCard';
+import RentalMap from '../components/RentalMap';
 
 // Defined outside the component so FlatList receives the same function on every render
 const keyExtractor = (item) => String(item.id);
+
+const VIEW_OPTIONS = [
+  { value: 'list', label: 'List View' },
+  { value: 'map', label: 'Map View' },
+];
 
 export default function RentalFeedScreen() {
   const insets = useSafeAreaInsets();
 
   const [rentals, setRentals] = useState([]);
+  // 'list' (default) or 'map'; both views show the same loaded rentals
+  const [viewMode, setViewMode] = useState('list');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   // Cursor for the next page; null means there are no more pages
@@ -163,6 +171,35 @@ export default function RentalFeedScreen() {
 
   const renderItem = useCallback(({ item }) => <RentalCard item={item} />, []);
 
+  const isMapView = viewMode === 'map';
+
+  // The map is created the first time Map View opens (list-only visits never load Google Maps),
+  // then stays mounted and hidden in List View so its pan and zoom survive switching
+  const [hasOpenedMap, setHasOpenedMap] = useState(false);
+  const selectView = useCallback((mode) => {
+    setViewMode(mode);
+    if (mode === 'map') {
+      setHasOpenedMap(true);
+    }
+  }, []);
+
+  // Rentals given to the map. While the map is hidden they stay as they were, so pages loaded in the list
+  // do not recluster or move a map nobody can see; it catches up when Map View opens again.
+  const [mapRentals, setMapRentals] = useState(rentals);
+  if (isMapView && mapRentals !== rentals) {
+    setMapRentals(rentals);
+  }
+
+  // Stable style arrays, so the memoized RentalMap skips re-rendering while its props are unchanged
+  const mapStyle = useMemo(() => [styles.map, { marginBottom: Math.max(insets.bottom, 16) }], [insets.bottom]);
+  const hiddenMapStyle = useMemo(() => [mapStyle, styles.hidden], [mapStyle]);
+
+  const refreshErrorBanner = refreshError ? (
+    <View style={styles.refreshErrorBanner} accessibilityRole="alert">
+      <Text style={styles.refreshErrorText}>{`Couldn't refresh rentals. ${refreshError}`}</Text>
+    </View>
+  ) : null;
+
   let content;
 
   if (loading) {
@@ -190,12 +227,11 @@ export default function RentalFeedScreen() {
   } else {
     content = (
       <>
-        {refreshError ? (
-          <View style={styles.refreshErrorBanner} accessibilityRole="alert">
-            <Text style={styles.refreshErrorText}>{`Couldn't refresh rentals. ${refreshError}`}</Text>
-          </View>
-        ) : null}
+        {refreshErrorBanner}
+        {/* The list stays mounted but hidden in Map View, so its scroll position and rendered cards survive
+            switching views. It keeps the same place in the tree in both views, so React never remounts it. */}
         <FlatList
+          style={isMapView ? styles.hidden : undefined}
           data={rentals}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
@@ -211,8 +247,9 @@ export default function RentalFeedScreen() {
           // Pull-to-refresh: reload the first page and replace the list
           refreshing={refreshing}
           onRefresh={refreshRentals}
-          // Infinite scroll: request the next page when within half a screen of the end
-          onEndReached={handleEndReached}
+          // Infinite scroll: request the next page when within half a screen of the end.
+          // Off while hidden: a hidden list measures 0 px tall and would otherwise load pages nobody sees.
+          onEndReached={isMapView ? undefined : handleEndReached}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             loadingMore ? (
@@ -235,6 +272,9 @@ export default function RentalFeedScreen() {
             ) : null
           }
         />
+        {/* Map of the rentals loaded so far; loading, error and refresh states stay shared with the list.
+            Hidden (not unmounted) in List View, in the same place in the tree, so the native map keeps its camera. */}
+        {hasOpenedMap ? <RentalMap rentals={mapRentals} style={isMapView ? mapStyle : hiddenMapStyle} /> : null}
       </>
     );
   }
@@ -246,6 +286,28 @@ export default function RentalFeedScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Rentals</Text>
         <Text style={styles.headerSubtitle}>Vehicles and equipment near your university</Text>
+
+        <View style={styles.viewToggle}>
+          {VIEW_OPTIONS.map((option) => {
+            const selected = viewMode === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                style={({ pressed }) => [
+                  styles.viewToggleButton,
+                  selected && styles.viewToggleButtonSelected,
+                  pressed && !selected && styles.viewToggleButtonPressed,
+                ]}
+                onPress={() => selectView(option.value)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`Show ${option.label}`}
+              >
+                <Text style={[styles.viewToggleText, selected && styles.viewToggleTextSelected]}>{option.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       {content}
@@ -273,6 +335,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#64748B',
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    marginTop: 12,
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: '#E2E8F0',
+  },
+  viewToggleButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  viewToggleButtonSelected: {
+    backgroundColor: '#FFFFFF',
+  },
+  viewToggleButtonPressed: {
+    opacity: 0.7,
+  },
+  viewToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  viewToggleTextSelected: {
+    color: '#2563EB',
+  },
+  map: {
+    marginHorizontal: 16,
+    borderRadius: 16,
+  },
+  hidden: {
+    display: 'none',
   },
   listContent: {
     paddingTop: 4,
