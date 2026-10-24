@@ -75,7 +75,7 @@ export function formatRentalPrice(price, period) {
 }
 
 function RentalCard({ item, onPress }) {
-  const title = item?.title?.trim() || 'Untitled rental';
+  const title = (typeof item?.title === 'string' ? item.title.trim() : '') || 'Untitled rental';
   const price = formatRentalPrice(item?.rentalPrice, item?.rentalPeriod);
 
   // vehicle is null for equipment rentals, so every read is optional
