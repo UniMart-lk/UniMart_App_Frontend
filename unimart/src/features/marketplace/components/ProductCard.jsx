@@ -31,9 +31,22 @@ export default function ProductCard({ item }) {
              <Text style={styles.locationText} numberOfLines={1}>{item.location}</Text>
            </View>
    
-           {/* Provider Badge */}
-           <View style={[styles.providerBadge, item.providerType === 'external' ? styles.bgTeal : styles.bgPurple]}>
-             <Text style={styles.providerIcon}>{item.providerType === 'external' ? <MaterialCommunityIcons name="earth" size={12} color="#FFFFFF" /> : <Ionicons name="school" size={12} color="#FFFFFF" />}</Text>
+           {/* Provider Badge and ratings */}
+           <View style={styles.footerRow}>
+             
+             {/* Provider Badge */}
+             <View style={[styles.providerBadge, item.providerType === 'external' ? styles.bgTeal : styles.bgPurple]}>
+               {item.providerType === 'external' 
+                 ? <MaterialCommunityIcons name="earth" size={12} color="#FFFFFF" /> 
+                 : <Ionicons name="school" size={12} color="#FFFFFF" />}
+             </View>
+
+             {/* Rating */}
+             <View style={styles.ratingContainer}>
+               <Ionicons name="star" size={12} color="#F59E0B" style={{ marginRight: 2 }} />
+               <Text style={styles.ratingText}>{item.rating}</Text>
+             </View>
+
            </View>
          </View>
        </TouchableOpacity>
@@ -95,15 +108,32 @@ const styles = StyleSheet.create({
   locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   locationText: { fontSize: 11, color: '#64748B', flex: 1 },
   
+ footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between', // Pushes badge to left, rating to right
+  },
+  
   providerBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
+    justifyContent: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    gap: 4,
   },
   bgPurple: { backgroundColor: '#8B5CF6' },
   bgTeal: { backgroundColor: '#06B6D4' },
+
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B', // Matching the gray text from your image
+  },
+
+
 });

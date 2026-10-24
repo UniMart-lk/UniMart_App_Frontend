@@ -18,7 +18,8 @@ const products = [
     price: 'LKR 1,500',
     condition: 'Like New',
     location: 'Sabaragamuwa Uni',
-    providerType: 'student', // 'student' or 'external'
+    providerType: 'student', // 'student' or 'external',
+    rating: '4.8', 
     image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&q=80',
   },
   {
@@ -28,6 +29,7 @@ const products = [
     condition: 'Good',
     location: 'Kandy',
     providerType: 'external',
+    rating: '4.8', 
     image: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&q=80',
   },
   {
@@ -37,6 +39,7 @@ const products = [
     condition: 'Used',
     location: 'Belihuloya',
     providerType: 'student',
+    rating: '4.8', 
     image: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=600&q=80',
   },
   {
@@ -46,6 +49,7 @@ const products = [
     condition: 'Like New',
     location: 'Balangoda',
     providerType: 'student',
+    rating: '4.8', 
     image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=600&q=80',
   },
 ];
@@ -239,8 +243,6 @@ const styles = StyleSheet.create({
     flex:10,
     marginHorizontal: 15,
     marginBottom: 10,
-    borderWidth:1,
-    borderColor:'red',
   },
 
   row: { 
