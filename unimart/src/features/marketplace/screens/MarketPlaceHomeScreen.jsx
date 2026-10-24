@@ -164,7 +164,7 @@ const renderProduct = ({ item }) => (
           <View style={activeTab === 'home' ? styles.activeIconBg : styles.inactiveIconBg}>
             <Ionicons name="home-sharp" size={24} color={activeTab === 'home' ? '#2563EB' : '#64748B'} />
           </View>
-        <Text style={styles.navText}>Home</Text>
+        <Text style={[styles.navText, activeTab === 'home' && styles.navTextActive]}>Home</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('marketplace')}>
