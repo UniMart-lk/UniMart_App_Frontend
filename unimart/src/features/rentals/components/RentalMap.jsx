@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
+import Supercluster from 'supercluster';
 import { formatRentalPrice } from './RentalCard';
 
 // Smallest zoom span so a single rental (or rentals at one spot) is not zoomed in to street level
@@ -12,6 +13,15 @@ const MAX_LATITUDE_DELTA = 180;
 const MAX_LONGITUDE_DELTA = 360;
 // Duration of the camera move when the rental locations change
 const REGION_ANIMATION_MS = 500;
+
+// Clustering: pins closer than CLUSTER_RADIUS screen pixels are grouped. Above CLUSTER_MAX_ZOOM
+// (street level) every rental is shown on its own.
+const CLUSTER_RADIUS = 60;
+const CLUSTER_MAX_ZOOM = 16;
+const MAX_MAP_ZOOM = 20;
+// Clusters are computed for the visible area plus this fraction of it on each side,
+// so pins just off screen are ready when the user pans
+const CLUSTER_BOUNDS_PADDING = 0.5;
 
 // Plain decimal text such as "6.9271000", "-33.86" or "1e-7" (how a Prisma Decimal prints)
 const DECIMAL_PATTERN = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
@@ -173,6 +183,110 @@ export function getRegionKey(region) {
 }
 
 /**
+ * Approximate map zoom level for a region (each level halves the visible longitude span)
+ * @param {{ longitudeDelta: number }} region
+ * @returns {number} integer between 0 and MAX_MAP_ZOOM
+ */
+export function getZoomForRegion(region) {
+  const zoom = Math.round(Math.log2(MAX_LONGITUDE_DELTA / region.longitudeDelta));
+  return Math.min(Math.max(Number.isFinite(zoom) ? zoom : 0, 0), MAX_MAP_ZOOM);
+}
+
+/**
+ * Bounding box [west, south, east, north] of a region, padded on each side and kept within world bounds
+ * @param {{ latitude: number, longitude: number, latitudeDelta: number, longitudeDelta: number }} region
+ * @returns {number[]}
+ */
+export function getClusterBoundingBox(region) {
+  const halfLatitude = (region.latitudeDelta / 2) * (1 + 2 * CLUSTER_BOUNDS_PADDING);
+  const halfLongitude = (region.longitudeDelta / 2) * (1 + 2 * CLUSTER_BOUNDS_PADDING);
+
+  const south = Math.max(region.latitude - halfLatitude, -90);
+  const north = Math.min(region.latitude + halfLatitude, 90);
+
+  // A padded box wider than the world covers every longitude
+  if (halfLongitude * 2 >= MAX_LONGITUDE_DELTA) {
+    return [-180, south, 180, north];
+  }
+
+  return [Math.max(region.longitude - halfLongitude, -180), south, Math.min(region.longitude + halfLongitude, 180), north];
+}
+
+/**
+ * Region centred on a point at a given zoom level (used to zoom into a cluster)
+ * @param {{ latitude: number, longitude: number }} center
+ * @param {number} zoom
+ * @returns {{ latitude: number, longitude: number, latitudeDelta: number, longitudeDelta: number }}
+ */
+export function getRegionForZoom(center, zoom) {
+  const delta = Math.max(MAX_LONGITUDE_DELTA / Math.pow(2, zoom), MIN_REGION_DELTA / 4);
+
+  return {
+    latitude: center.latitude,
+    longitude: center.longitude,
+    latitudeDelta: Math.min(delta, MAX_LATITUDE_DELTA),
+    longitudeDelta: Math.min(delta, MAX_LONGITUDE_DELTA),
+  };
+}
+
+/**
+ * Build the cluster index for the valid rental locations
+ * @param {object[]} locations - items from getRentalLocations (coordinates already validated)
+ * @returns {Supercluster}
+ */
+export function createClusterIndex(locations) {
+  const index = new Supercluster({ radius: CLUSTER_RADIUS, maxZoom: CLUSTER_MAX_ZOOM });
+
+  index.load(
+    locations.map((location) => ({
+      type: 'Feature',
+      properties: { locationId: location.id },
+      // GeoJSON order is [longitude, latitude]
+      geometry: { type: 'Point', coordinates: [location.coordinate.longitude, location.coordinate.latitude] },
+    }))
+  );
+
+  return index;
+}
+
+// Only use a region reported by the map if every value is usable
+function isValidRegion(region) {
+  return (
+    region != null &&
+    [region.latitude, region.longitude, region.latitudeDelta, region.longitudeDelta].every(
+      (value) => typeof value === 'number' && Number.isFinite(value)
+    ) &&
+    region.latitudeDelta > 0 &&
+    region.longitudeDelta > 0
+  );
+}
+
+/**
+ * Pin for a group of nearby rentals, showing how many it contains
+ * Memoized on primitive props, since the cluster index returns new objects on every query
+ */
+const ClusterMarker = React.memo(function ClusterMarker({ clusterId, latitude, longitude, count, label, onPress }) {
+  const coordinate = useMemo(() => ({ latitude, longitude }), [latitude, longitude]);
+  const handlePress = useCallback(() => onPress(clusterId, latitude, longitude), [onPress, clusterId, latitude, longitude]);
+
+  // Bigger groups get a bigger circle
+  const size = count < 10 ? 36 : count < 100 ? 44 : 52;
+
+  return (
+    <Marker
+      coordinate={coordinate}
+      onPress={handlePress}
+      anchor={{ x: 0.5, y: 0.5 }}
+      accessibilityLabel={`${count} rentals, tap to zoom in`}
+    >
+      <View style={[styles.cluster, { width: size, height: size, borderRadius: size / 2 }]}>
+        <Text style={styles.clusterText}>{label}</Text>
+      </View>
+    </Marker>
+  );
+});
+
+/**
  * One rental pin with its callout
  * Memoized: re-renders only when its location object or the select handler changes
  * @param {object} props
@@ -272,11 +386,53 @@ function RentalMap({ rentals, onRentalPress, style }) {
     fitToRegion(region);
   }, [region, fitToRegion]);
 
+  // Area the user is looking at, reported by the map after each pan/zoom; null until the map reports one,
+  // when the fitted region (what initialRegion shows) is used
+  const [visibleRegion, setVisibleRegion] = useState(null);
+
   // Locations can change before the native map is ready, when animateToRegion would be lost
   const handleMapReady = useCallback(() => {
     isMapReady.current = true;
+    // A newly mounted map (e.g. after the empty state) starts at the fitted region, not an old map's view
+    setVisibleRegion(null);
     fitToRegion(latestRegion.current);
   }, [fitToRegion]);
+
+  // onRegionChangeComplete fires once per finished pan/zoom (not every frame), which keeps reclustering cheap
+  const handleRegionChangeComplete = useCallback((nextRegion) => {
+    if (!isValidRegion(nextRegion)) {
+      return;
+    }
+    setVisibleRegion((current) => (getRegionKey(current) === getRegionKey(nextRegion) ? current : nextRegion));
+  }, []);
+
+  const clusterIndex = useMemo(() => createClusterIndex(locations), [locations]);
+  const locationsById = useMemo(() => new Map(locations.map((location) => [location.id, location])), [locations]);
+
+  // Re-queried when the visible area or the rental locations change
+  const clusterRegion = visibleRegion ?? region;
+  const clusters = useMemo(
+    () => (clusterRegion ? clusterIndex.getClusters(getClusterBoundingBox(clusterRegion), getZoomForRegion(clusterRegion)) : []),
+    [clusterIndex, clusterRegion]
+  );
+
+  // Zoom in just far enough for the cluster to split into smaller groups or single rentals
+  const zoomIntoCluster = useCallback(
+    (clusterId, latitude, longitude) => {
+      let expansionZoom;
+      try {
+        expansionZoom = clusterIndex.getClusterExpansionZoom(clusterId);
+      } catch {
+        // The cluster belongs to an index replaced by newer locations; the next render shows the new clusters
+        return;
+      }
+
+      // Zooming in is the user taking control of the viewport, so automatic refits stop
+      userMovedMap.current = true;
+      mapRef.current?.animateToRegion(getRegionForZoom({ latitude, longitude }, expansionZoom), REGION_ANIMATION_MS);
+    },
+    [clusterIndex]
+  );
 
   // isGesture is false for this component's own animateToRegion, so only user moves count
   // (reported by Google Maps, i.e. Android); onPanDrag also catches drags
@@ -326,15 +482,36 @@ function RentalMap({ rentals, onRentalPress, style }) {
         onMapReady={handleMapReady}
         onRegionChangeStart={handleRegionChangeStart}
         onPanDrag={handlePanDrag}
+        onRegionChangeComplete={handleRegionChangeComplete}
         toolbarEnabled={false}
       >
-        {locations.map((location) => (
-          <RentalMarker
-            key={location.id}
-            location={location}
-            onSelect={hasPressHandler ? selectRental : undefined}
-          />
-        ))}
+        {clusters.map((feature) => {
+          const [longitude, latitude] = feature.geometry.coordinates;
+
+          if (feature.properties.cluster) {
+            return (
+              <ClusterMarker
+                // Prefixed so a cluster key can never equal a rental key
+                key={`cluster:${feature.properties.cluster_id}`}
+                clusterId={feature.properties.cluster_id}
+                latitude={latitude}
+                longitude={longitude}
+                count={feature.properties.point_count}
+                label={String(feature.properties.point_count_abbreviated)}
+                onPress={zoomIntoCluster}
+              />
+            );
+          }
+
+          const location = locationsById.get(feature.properties.locationId);
+          return location ? (
+            <RentalMarker
+              key={`rental:${location.id}`}
+              location={location}
+              onSelect={hasPressHandler ? selectRental : undefined}
+            />
+          ) : null;
+        })}
       </MapView>
     </View>
   );
@@ -347,6 +524,18 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
     backgroundColor: '#F1F5F9',
+  },
+  cluster: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2563EB',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  clusterText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   // Fixed width: Android draws the callout as a snapshot and clips content sized to fit its text
   callout: {
