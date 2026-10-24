@@ -194,9 +194,9 @@ const renderProduct = ({ item }) => (
 
         <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('profile')}>
            <View style={activeTab === 'profile' ? styles.activeIconBg : styles.inactiveIconBg}>
-                <Ionicons name="person" size={24} color={activeTab === 'person' ? '#2563EB' : '#64748B'} />
+                <Ionicons name="person" size={24} color={activeTab === 'profile' ? '#2563EB' : '#64748B'} />
            </View>
-          <Text style={[styles.navText, activeTab === 'person' && styles.navTextActive]}>Profile</Text>
+          <Text style={[styles.navText, activeTab === 'profile' && styles.navTextActive]}>Profile</Text>
         </TouchableOpacity>
       </View>
 
