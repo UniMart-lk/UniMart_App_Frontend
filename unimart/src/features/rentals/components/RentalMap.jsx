@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import { formatRentalPrice } from './RentalCard';
@@ -87,23 +87,40 @@ export function getRentalLocations(rentals) {
     }
     seenIds.add(id);
 
-    const title = typeof rental.title === 'string' ? rental.title.trim() : '';
-    const pickupLocation =
-      typeof rental.vehicle?.pickupLocationName === 'string' ? rental.vehicle.pickupLocationName.trim() : '';
-
-    locations.push({
-      id,
-      title: title || 'Untitled rental',
-      // null when the price is missing or invalid; the callout shows a fallback
-      price: formatRentalPrice(rental.rentalPrice, rental.rentalPeriod),
-      // empty string when there is no pickup name; the callout hides that line
-      pickupLocation,
-      coordinate,
-      rental,
-    });
+    locations.push(toRentalLocation(rental, id, coordinate));
   });
 
   return locations;
+}
+
+// One location object per rental object. The feed keeps existing rental objects when it appends a page,
+// so reusing their location objects lets the memoized markers skip re-rendering.
+// Rentals are treated as immutable (React state); a refreshed rental is a new object and gets a new location.
+const locationCache = new WeakMap();
+
+function toRentalLocation(rental, id, coordinate) {
+  const cached = locationCache.get(rental);
+  if (cached && cached.id === id) {
+    return cached;
+  }
+
+  const title = typeof rental.title === 'string' ? rental.title.trim() : '';
+  const pickupLocation =
+    typeof rental.vehicle?.pickupLocationName === 'string' ? rental.vehicle.pickupLocationName.trim() : '';
+
+  const location = {
+    id,
+    title: title || 'Untitled rental',
+    // null when the price is missing or invalid; the callout shows a fallback
+    price: formatRentalPrice(rental.rentalPrice, rental.rentalPeriod),
+    // empty string when there is no pickup name; the callout hides that line
+    pickupLocation,
+    coordinate,
+    rental,
+  };
+
+  locationCache.set(rental, location);
+  return location;
 }
 
 /**
@@ -139,6 +156,47 @@ export function getRegionForCoordinates(coordinates) {
 }
 
 /**
+ * One rental pin with its callout
+ * Memoized: re-renders only when its location object or the select handler changes
+ * @param {object} props
+ * @param {object} props.location - item from getRentalLocations
+ * @param {function} [props.onSelect] - called with the rental when the callout is tapped
+ */
+const RentalMarker = React.memo(function RentalMarker({ location, onSelect }) {
+  const handleCalloutPress = useCallback(() => onSelect(location.rental), [onSelect, location]);
+
+  return (
+    <Marker
+      coordinate={location.coordinate}
+      // Tapping the pin opens the callout; tapping the callout selects the rental
+      onCalloutPress={onSelect ? handleCalloutPress : undefined}
+    >
+      <Callout>
+        <View style={styles.callout} accessibilityLabel={`${location.title}, ${location.price ?? 'Price not available'}`}>
+          <Text style={styles.calloutTitle} numberOfLines={2}>
+            {location.title}
+          </Text>
+
+          {location.price ? (
+            <Text style={styles.calloutPrice}>{location.price}</Text>
+          ) : (
+            <Text style={styles.calloutPriceUnavailable}>Price not available</Text>
+          )}
+
+          {location.pickupLocation ? (
+            <Text style={styles.calloutPickup} numberOfLines={2}>
+              Pickup: {location.pickupLocation}
+            </Text>
+          ) : null}
+
+          {onSelect ? <Text style={styles.calloutAction}>Tap to view details</Text> : null}
+        </View>
+      </Callout>
+    </Marker>
+  );
+});
+
+/**
  * Map of rental pickup locations
  * @param {object} props
  * @param {object[]} props.rentals - rental feed items (same shape as RentalFeedScreen uses)
@@ -155,6 +213,19 @@ function RentalMap({ rentals, onRentalPress, style }) {
   );
 
   const hasPressHandler = typeof onRentalPress === 'function';
+
+  // Markers get one handler that never changes, so a parent passing an inline onRentalPress
+  // does not re-render every marker; the handler always calls the latest onRentalPress
+  const onRentalPressRef = useRef(onRentalPress);
+  useEffect(() => {
+    onRentalPressRef.current = onRentalPress;
+  }, [onRentalPress]);
+
+  const selectRental = useCallback((rental) => {
+    if (typeof onRentalPressRef.current === 'function') {
+      onRentalPressRef.current(rental);
+    }
+  }, []);
 
   if (locations.length === 0) {
     return (
@@ -175,37 +246,11 @@ function RentalMap({ rentals, onRentalPress, style }) {
         toolbarEnabled={false}
       >
         {locations.map((location) => (
-          <Marker
+          <RentalMarker
             key={location.id}
-            coordinate={location.coordinate}
-            // Tapping the pin opens the callout; tapping the callout selects the rental
-            onCalloutPress={hasPressHandler ? () => onRentalPress(location.rental) : undefined}
-          >
-            <Callout>
-              <View
-                style={styles.callout}
-                accessibilityLabel={`${location.title}, ${location.price ?? 'Price not available'}`}
-              >
-                <Text style={styles.calloutTitle} numberOfLines={2}>
-                  {location.title}
-                </Text>
-
-                {location.price ? (
-                  <Text style={styles.calloutPrice}>{location.price}</Text>
-                ) : (
-                  <Text style={styles.calloutPriceUnavailable}>Price not available</Text>
-                )}
-
-                {location.pickupLocation ? (
-                  <Text style={styles.calloutPickup} numberOfLines={2}>
-                    Pickup: {location.pickupLocation}
-                  </Text>
-                ) : null}
-
-                {hasPressHandler ? <Text style={styles.calloutAction}>Tap to view details</Text> : null}
-              </View>
-            </Callout>
-          </Marker>
+            location={location}
+            onSelect={hasPressHandler ? selectRental : undefined}
+          />
         ))}
       </MapView>
     </View>
