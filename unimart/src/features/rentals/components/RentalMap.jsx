@@ -7,17 +7,34 @@ import { formatRentalPrice } from './RentalCard';
 const MIN_REGION_DELTA = 0.02;
 // Extra space around the outermost rentals so their pins are not on the map edge
 const REGION_PADDING_FACTOR = 1.4;
+// Largest spans react-native-maps accepts for a region
+const MAX_LATITUDE_DELTA = 180;
+const MAX_LONGITUDE_DELTA = 360;
 
-// Accept only numbers or numeric strings (e.g. an unconverted Prisma Decimal);
-// Number() would turn null, '', true or [] into 0 or 1 and place a pin at a wrong spot
+// Plain decimal text such as "6.9271000", "-33.86" or "1e-7" (how a Prisma Decimal prints)
+const DECIMAL_PATTERN = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
+
+// Accept only numbers or decimal strings (e.g. an unconverted Prisma Decimal);
+// Number() would turn null, '', true or [] into 0 or 1, and '0x1A' into 26, placing a pin at a wrong spot
 function toCoordinateNumber(value) {
   if (typeof value === 'number') {
     return value;
   }
-  if (typeof value === 'string' && value.trim() !== '') {
+  if (typeof value === 'string' && DECIMAL_PATTERN.test(value.trim())) {
     return Number(value);
   }
   return NaN;
+}
+
+// Marker key for a rental, or null when the id is unusable ({} would become "[object Object]")
+function toRentalKey(id) {
+  if (typeof id === 'number') {
+    return Number.isFinite(id) ? String(id) : null;
+  }
+  if (typeof id === 'string') {
+    return id.trim() || null;
+  }
+  return null;
 }
 
 /**
@@ -59,12 +76,12 @@ export function getRentalLocations(rentals) {
 
   rentals.forEach((rental) => {
     const coordinate = getRentalCoordinate(rental);
-    if (!coordinate || rental?.id === null || rental?.id === undefined) {
+    const id = toRentalKey(rental?.id);
+    if (!coordinate || id === null) {
       return;
     }
 
     // Marker keys must be unique; skip a rental repeated across pages
-    const id = String(rental.id);
     if (seenIds.has(id)) {
       return;
     }
@@ -110,8 +127,14 @@ export function getRegionForCoordinates(coordinates) {
   return {
     latitude: (minLatitude + maxLatitude) / 2,
     longitude: (minLongitude + maxLongitude) / 2,
-    latitudeDelta: Math.max((maxLatitude - minLatitude) * REGION_PADDING_FACTOR, MIN_REGION_DELTA),
-    longitudeDelta: Math.max((maxLongitude - minLongitude) * REGION_PADDING_FACTOR, MIN_REGION_DELTA),
+    latitudeDelta: Math.min(
+      Math.max((maxLatitude - minLatitude) * REGION_PADDING_FACTOR, MIN_REGION_DELTA),
+      MAX_LATITUDE_DELTA
+    ),
+    longitudeDelta: Math.min(
+      Math.max((maxLongitude - minLongitude) * REGION_PADDING_FACTOR, MIN_REGION_DELTA),
+      MAX_LONGITUDE_DELTA
+    ),
   };
 }
 
