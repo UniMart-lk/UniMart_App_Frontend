@@ -7,7 +7,7 @@ import { ScrollView } from 'react-native';
 import { FlatList } from 'react-native';
 import BottomNav from '../../../components/BottomNav';
 import ProductCard from '../components/ProductCard';
-import { products } from '../data/mockProducts'; 
+import { products } from '../data/mockData'; 
 
   // --- MOCK DATA ---
 const categories= ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
@@ -54,7 +54,7 @@ const displayProducts = getProcessedProducts();
 
   return (
    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="auto" />
+      <StatusBar style="dark" />
 
        {/* 1. HEADER */}
       <View style={styles.header}>                    

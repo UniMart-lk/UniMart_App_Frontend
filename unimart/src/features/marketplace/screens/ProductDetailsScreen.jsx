@@ -1,18 +1,52 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import React from 'react'
+import { StyleSheet, Text, TouchableOpacity, View, Image , Dimensions } from 'react-native'
+import React, { useState } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
-import { Image } from 'react-native';
+import { products } from '../data/mockData'; 
+
+ const { width } = Dimensions.get('window');
 
 export default function ProductDetailsScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams();
+    const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+     // Find the product based on the ID passed from the ProductCard
+     const product = products.find((p) => p.id === id);
+
+       if (!product) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <Text style={{ textAlign: 'center', marginTop: 50 }}>Product not found</Text>
+        <TouchableOpacity onPress={() => router.back()} style={{ alignSelf: 'center', marginTop: 20 }}>
+          <Text style={{ color: '#2563EB' }}>Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+    // Update dots when user swipes images
+  const handleScroll = (event) => {
+    const scrollPosition = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollPosition / width);
+    setActiveImageIndex(index);
+  };
+
+   // Render individual image in the carousel
+  const renderImage = ({ item }) => (
+    <Image 
+      source={{ uri: item }} 
+      style={styles.productImage} 
+      resizeMode="cover" 
+    />
+  );
+   
 
   return (
     <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="auto" />
+        <StatusBar style="dark" />
         <View style={styles.imgCcontainer}>
            
 
@@ -55,6 +89,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     backgroundColor: '#ffffff'
     
+  },
+
+    productImage: {
+    width: width, // Takes full width of screen
+    height: 400,
   },
 
 })
