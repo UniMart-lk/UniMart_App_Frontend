@@ -14,9 +14,6 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-
-
-// 👇 Make sure this path is correct based on your folder structure
 import { products } from '../data/mockData'; 
 
 const { width } = Dimensions.get('window');
@@ -25,6 +22,7 @@ export default function ProductDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Find the product based on the ID passed from the ProductCard
   const product = products.find((p) => p.id === id);
@@ -134,11 +132,13 @@ export default function ProductDetailsScreen() {
 
           {/* Description */}
           <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.description}>
+          <Text style={styles.description} numberOfLines={isExpanded ? undefined : 3}>
             {product.description}
           </Text>
-          <TouchableOpacity>
-            <Text style={styles.readMore}>Read More</Text>
+         <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
+            <Text style={styles.readMore}>
+              {isExpanded ? 'Read Less' : 'Read More'}
+            </Text>
           </TouchableOpacity>
 
           <View style={styles.divider} />
