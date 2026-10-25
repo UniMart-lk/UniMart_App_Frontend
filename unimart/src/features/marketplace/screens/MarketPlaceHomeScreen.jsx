@@ -54,7 +54,7 @@ const displayProducts = getProcessedProducts();
 
   return (
    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
 
        {/* 1. HEADER */}
       <View style={styles.header}>                    
