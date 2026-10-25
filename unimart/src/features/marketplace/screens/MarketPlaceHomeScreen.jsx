@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
 
   header:{
-    flex: 1.4,
+    flex: 1.3,
     backgroundColor: '#ffffff',
     flexDirection: 'row',
     alignItems: 'center',

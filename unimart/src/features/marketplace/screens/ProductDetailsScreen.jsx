@@ -13,6 +13,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
+
 
 // 👇 Make sure this path is correct based on your folder structure
 import { products } from '../data/mockData'; 
@@ -55,7 +57,7 @@ export default function ProductDetailsScreen() {
   );
 
   return (
-    <View style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar style="auto" />
       
       {/* --- SCROLLABLE CONTENT --- */}
@@ -74,19 +76,25 @@ export default function ProductDetailsScreen() {
           />
 
           {/* Overlay Top Bar (Back, Share, Heart) */}
-          <View style={styles.overlayHeader}>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={22} color="#0F172A" />
-            </TouchableOpacity>
-            <View style={styles.rightIcons}>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Ionicons name="share-social-outline" size={20} color="#0F172A" />
+          <LinearGradient
+            colors={['rgba(0,0,0,0.6)', 'transparent']} 
+            style={styles.gradientOverlay}
+          >
+            <View style={styles.overlayHeader}>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+                <Ionicons name="arrow-back" size={22} color="#0F172A" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Ionicons name="heart-outline" size={20} color="#0F172A" />
-              </TouchableOpacity>
+              
+              <View style={styles.rightIcons}>
+                <TouchableOpacity style={styles.iconBtn}>
+                  <Ionicons name="share-social-outline" size={20} color="#0F172A" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.iconBtn}>
+                  <Ionicons name="heart-outline" size={20} color="#0F172A" />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          </LinearGradient>
 
           {/* Image Counter (e.g., 1/3) */}
           <View style={styles.counterBadge}>
@@ -134,13 +142,7 @@ export default function ProductDetailsScreen() {
           </TouchableOpacity>
 
           <View style={styles.divider} />
-          
-          {/* Location */}
-          <Text style={styles.sectionTitle}>Location</Text>
-          <View style={styles.locationRow}>
-            <Ionicons name="location" size={16} color="#EF4444" />
-            <Text style={styles.locationText}>{product.location}</Text>
-          </View>
+        
         </View>
       </ScrollView>
 
@@ -155,7 +157,7 @@ export default function ProductDetailsScreen() {
         </TouchableOpacity>
       </View>
 
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -172,19 +174,26 @@ const styles = StyleSheet.create({
     position: 'relative',
     backgroundColor: '#E2E8F0', // Placeholder color while image loads
   },
+
   productImage: {
     width: width, // Takes full width of screen
     height: 400,
   },
 
-  overlayHeader: {
+    gradientOverlay: {
     position: 'absolute',
-    top: 50,
+    top: 0,
     left: 0,
     right: 0,
+    height: 120, // 👈 Controls how far down the fade goes
+    paddingTop: 15, // 👈 Pushes the buttons down below the status bar
+    zIndex: 10,
+  },
+
+  overlayHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
   },
 
   rightIcons: {
@@ -263,7 +272,7 @@ const styles = StyleSheet.create({
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 10,
   },
 
   conditionBadge: {
@@ -303,10 +312,22 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
 
+    locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent:'flex-end'
+  },
+
+  locationText: {
+    fontSize: 14,
+    color: '#475569',
+    marginLeft: 6,
+  },
+
   divider: {
     height: 1,
     backgroundColor: '#E2E8F0',
-    marginVertical: 20,
+    marginVertical: 10
   },
 
   sectionTitle: {
@@ -329,17 +350,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
 
-  locationText: {
-    fontSize: 14,
-    color: '#475569',
-    marginLeft: 6,
-  },
 
   // --- BOTTOM ACTION BAR STYLES ---
   bottomBar: {
