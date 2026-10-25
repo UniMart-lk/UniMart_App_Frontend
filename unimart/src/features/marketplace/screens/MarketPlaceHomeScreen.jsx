@@ -7,60 +7,10 @@ import { ScrollView } from 'react-native';
 import { FlatList } from 'react-native';
 import BottomNav from '../../../components/BottomNav';
 import ProductCard from '../components/ProductCard';
+import { products } from '../data/mockData'; 
 
   // --- MOCK DATA ---
 const categories= ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
-
-const products = [
-  {
-    id: '1',
-    title: 'Calculus Textbook',
-    price: 'LKR 1,500',
-    numericPrice: 1500,
-    condition: 'Like New',
-    location: 'Sabaragamuwa Uni',
-    providerType: 'student',
-    category: 'Books', 
-    rating: '4.8', 
-    image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&q=80',
-  },
-  {
-    id: '2',
-    title: 'iPhone 11 64GB',
-    price: 'LKR 85,000',
-    numericPrice: 85000,
-    condition: 'Good',
-    location: 'Kandy',
-    providerType: 'external',
-    category: 'Electronics',
-    rating: '4.9', 
-    image: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&q=80',
-  },
-  {
-    id: '3',
-    title: 'Wooden Study Table',
-    price: 'LKR 8,500',
-    numericPrice: 8500,
-    condition: 'Used',
-    location: 'Belihuloya',
-    providerType: 'student',
-    category: 'Furniture',
-    rating: '4.5', 
-    image: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=600&q=80',
-  },
-  {
-    id: '4',
-    title: 'Mountain Bike',
-    price: 'LKR 22,000',
-    numericPrice: 22000,
-    condition: 'Like New',
-    location: 'Balangoda',
-    providerType: 'student',
-    category: 'Furniture',
-    rating: '4.8', 
-    image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=600&q=80',
-  },
-];
 
 export default function MarketplaceHomeScreen() {
 
@@ -240,7 +190,7 @@ const styles = StyleSheet.create({
   },
 
   header:{
-    flex: 1.4,
+    flex: 1.3,
     backgroundColor: '#ffffff',
     flexDirection: 'row',
     alignItems: 'center',
@@ -371,6 +321,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent', 
   },
+  
   dropdownMenu: {
     position: 'absolute',
     top: 220, 
@@ -387,6 +338,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
+
   dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -394,10 +346,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
   },
+
   dropdownText: {
     fontSize: 14,
     color: '#0F172A',
   },
+
   dropdownTextActive: {
     color: '#2563EB',
     fontWeight: '600',

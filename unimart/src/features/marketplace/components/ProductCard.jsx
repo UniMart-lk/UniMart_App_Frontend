@@ -1,15 +1,27 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 export default function ProductCard({ item }) {
       const [isFavorite, setIsFavorite] = useState(false);
+       const router = useRouter();
+
+    const handlePress = () => {
+      router.push({
+      pathname: '/productDetails',
+      params: { id: item.id } // Pass the ID to the next screen
+    });
+  };
 
   return (
-   <TouchableOpacity style={styles.cardContainer}>
+   <TouchableOpacity style={styles.cardContainer} onPress={handlePress} activeOpacity={0.8}>
          {/* Image & Badges */}
          <View style={styles.imageContainer}>
-           <Image source={{ uri: item.image }} style={styles.image} />
+          <Image 
+             source={{ uri: item.images && item.images.length > 0 ? item.images[0] : 'https://via.placeholder.com/150' }} 
+             style={styles.image} 
+           />
            
            {/* Condition Badge */}
            <View style={styles.conditionBadge}>
