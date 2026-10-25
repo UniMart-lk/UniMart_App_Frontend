@@ -1,16 +1,27 @@
+<<<<<<< HEAD
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Alert } from 'react-native'
+=======
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, TouchableWithoutFeedback } from 'react-native'
+>>>>>>> b1df116591788878b02e77674380e84707345c44
 import React from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { ScrollView } from 'react-native';
 import { FlatList } from 'react-native';
+<<<<<<< HEAD
 import { router } from 'expo-router';
 import { useChat } from '@/features/chat/ChatContext';
+=======
+import BottomNav from '../../../components/BottomNav';
+import ProductCard from '../components/ProductCard';
+import { products } from '../data/mockData'; 
+>>>>>>> b1df116591788878b02e77674380e84707345c44
 
   // --- MOCK DATA ---
 const categories= ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
 
+<<<<<<< HEAD
 const products = [
   {
     id: '1',
@@ -100,13 +111,28 @@ export default function MarketPlaceHomeScreen() {
         <View style={styles.conditionBadge}>
           <Text style={styles.conditionText}>{item.condition}</Text>
         </View>
+=======
+export default function MarketplaceHomeScreen() {
 
-        {/* Heart Icon (Mock) */}
-        <View style={styles.heartIcon}>
-          <Ionicons name="heart-outline" size={15} color="#0F172A" />
-        </View>
-      </View>
+const [activeCategory, setActiveCategory] = React.useState('All');
+const [activeTab, setActiveTab] = React.useState('marketplace'); 
+const [userRole, setUserRole] = React.useState('provider');
+const [sortOption, setSortOption] = React.useState('Newest');
+const [isDropdownVisible, setIsDropdownVisible] = React.useState(false);
+const [searchQuery, setSearchQuery] = React.useState('');
 
+const sortOptions = ['Newest', 'Price: Low to High', 'Price: High to Low', 'Highest Rated'];
+>>>>>>> b1df116591788878b02e77674380e84707345c44
+
+// --- FILTER AND SORT LOGIC ---
+const getProcessedProducts = () => {
+  // 1. Filter by Category
+  let filtered = products.filter((product) => {
+    if (activeCategory === 'All') return true;
+    return product.category === activeCategory;
+  });
+
+<<<<<<< HEAD
       {/* Details */}
       <View style={styles.cardDetails}>
         <Text style={styles.productTitle} numberOfLines={2}>{item.title}</Text>
@@ -133,6 +159,28 @@ export default function MarketPlaceHomeScreen() {
       </View>
     </TouchableOpacity>
   );
+=======
+  // 2. Filter by Search Query (Case-insensitive)
+  if (searchQuery.trim() !== '') {
+    filtered = filtered.filter((product) => 
+      product.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
+    );
+  }
+
+  // 3. Sort
+  if (sortOption === 'Price: Low to High') {
+    filtered.sort((a, b) => a.numericPrice - b.numericPrice);
+  } else if (sortOption === 'Price: High to Low') {
+    filtered.sort((a, b) => b.numericPrice - a.numericPrice);
+  } else if (sortOption === 'Highest Rated') {
+    filtered.sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating));
+  }
+  
+  return filtered;
+};
+
+const displayProducts = getProcessedProducts();
+>>>>>>> b1df116591788878b02e77674380e84707345c44
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -166,7 +214,18 @@ export default function MarketPlaceHomeScreen() {
       <View style={styles.searchBarContainer}>
         <View style={styles.placeholderContainer}>
           <Ionicons name='search-outline' size={20} color="#0F172A8D" />
-          <TextInput placeholder="Search Products..." style={styles.placeholder} />
+          <TextInput 
+            placeholder="Search Products..." 
+            style={styles.placeholder}
+            value={searchQuery}
+            onChangeText={(text) => setSearchQuery(text)}
+          />
+          {/* CLEAR BUTTON */}
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          )}
         </View>
 
         <TouchableOpacity>
@@ -187,9 +246,9 @@ export default function MarketPlaceHomeScreen() {
 
        {/* Results & Sort */}
       <View style={styles.resultsAndSortContainer}>
-        <Text style={styles.result}>1234 results</Text>
-        <TouchableOpacity style={styles.sortbtn}>
-          <Text style={styles.sortText}>Sort: Newest</Text>
+        <Text style={styles.result}>{displayProducts.length} results</Text>
+        <TouchableOpacity style={styles.sortbtn} onPress={() => setIsDropdownVisible(true)}>
+          <Text style={styles.sortText}>Sort: {sortOption}</Text>
           <Ionicons name="caret-down" size={15} color="#2563EB" />
         </TouchableOpacity>
       </View>
@@ -197,21 +256,30 @@ export default function MarketPlaceHomeScreen() {
       {/* 3. PRODUCT GRID */}
       <View style={styles.productGridContainer}>
         <FlatList 
-         data={products}
-         renderItem={renderProduct}
+         data={displayProducts}
+         renderItem={({ item }) => <ProductCard item={item} />}
          keyExtractor={(item) => item.id}
          numColumns={2}
          columnWrapperStyle={styles.row}
          showsVerticalScrollIndicator={false}
-         contentContainerStyle={{ paddingBottom: 15 }} />
+         contentContainerStyle={{ paddingBottom: 80 }} 
+         ListEmptyComponent={
+           <View style={{ alignItems: 'center', marginTop: 40 }}>
+             <Text style={{ fontSize: 16, color: '#64748B' }}>No products found.</Text>
+           </View>
+         }
+        />
 
         {/* 4. FLOATING ACTION BUTTON (FAB) */}
-        <TouchableOpacity style={styles.fab}>
-          <Ionicons name="add" size={30} color="#FFFFFF" />
-        </TouchableOpacity>
+       {userRole === 'provider' && (
+          <TouchableOpacity style={styles.fab}>
+            <Ionicons name="add" size={30} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </View>
 
        {/* 5. BOTTOM NAVIGATION */}
+<<<<<<< HEAD
       <View style={styles.bottomNavConatiner}>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/home')}>
           <View style={styles.inactiveIconBg}>
@@ -255,6 +323,46 @@ export default function MarketPlaceHomeScreen() {
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>
+=======
+      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      {/* --- SORT DROPDOWN MODAL --- */}
+      <Modal
+        visible={isDropdownVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsDropdownVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setIsDropdownVisible(false)}>
+          <View style={styles.modalOverlay}>
+            
+            <View style={styles.dropdownMenu}>
+              {sortOptions.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setSortOption(option);
+                    setIsDropdownVisible(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.dropdownText, 
+                    sortOption === option && styles.dropdownTextActive
+                  ]}>
+                    {option}
+                  </Text>
+                  {sortOption === option && (
+                    <Ionicons name="checkmark" size={16} color="#2563EB" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+>>>>>>> b1df116591788878b02e77674380e84707345c44
 
    </SafeAreaView>
  
@@ -268,7 +376,7 @@ const styles = StyleSheet.create({
   },
 
   header:{
-    flex: 1.4,
+    flex: 1.3,
     backgroundColor: '#ffffff',
     flexDirection: 'row',
     alignItems: 'center',
@@ -296,20 +404,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1, 
     color:"#0F172A8D"
-    
   },
 
   placeholder:{
       fontSize: 15, 
-      width:'83%', 
+      flex: 1,
+      paddingVertical: 0, 
   },
 
   chipScroll: { 
     marginHorizontal: 15,
     marginBottom: 20,
     flexGrow: 0
-    
   },
 
   chipContainer: { 
@@ -358,7 +466,6 @@ const styles = StyleSheet.create({
     flexDirection:'row',
     alignItems:'center',
     gap: 5
-
   },
 
   sortText:{
@@ -369,16 +476,7 @@ const styles = StyleSheet.create({
   productGridContainer:{
     flex:10,
     marginHorizontal: 15,
-     marginBottom: 10
-  },
-
-  cardContainer: {
-    width: '48%', // 2 columns
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    overflow: 'hidden',
+    marginBottom: 10,
   },
 
   row: { 
@@ -386,66 +484,9 @@ const styles = StyleSheet.create({
     marginBottom: 15
   },
 
-  imageContainer: { 
-    width: '100%', 
-    aspectRatio: 1, 
-    position: 'relative' 
-  },
-
-  image: { 
-    width: '100%', 
-    height: '100%' 
-  },
-
-  conditionBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-
-  conditionText: { 
-    fontSize: 10, 
-    fontWeight: '500',
-     color: '#0F172A' 
-  },
-
-  heartIcon: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#FFFFFF',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  cardDetails: { padding: 12 },
-  productTitle: { fontSize: 14, fontWeight: '500', color: '#0F172A', marginBottom: 4, minHeight: 40 },
-  productPrice: { fontSize: 15, fontWeight: '700', color: '#2563EB', marginBottom: 8 },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  locationText: { fontSize: 11, color: '#64748B', flex: 1 },
-  
-  providerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  bgPurple: { backgroundColor: '#8B5CF6' },
-  bgTeal: { backgroundColor: '#06B6D4' },
-
   fab: {
     position: 'absolute',
-    bottom: 15, // Above bottom nav
+    bottom: 15, 
     right: 15,
     width: 45,
     height: 45,
@@ -462,57 +503,29 @@ const styles = StyleSheet.create({
 
   fabIcon: { fontSize: 28, color: '#FFFFFF', marginTop: -2 },
 
-  bottomNavConatiner:{
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingTop: 10,
-    paddingHorizontal:15,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent', 
   },
-
-  navItem: { 
-    flex: 1, 
-    alignItems: 'center', 
-    justifyContent: 'center',
-   
-  },
-
-  activeIconBg: {
-  backgroundColor: '#E0E7FF', // Light blue background for active tab
-  paddingHorizontal: 16,      // Makes it a pill shape
-  paddingVertical: 5,
-  borderRadius: 20,
-
-},
-
-inactiveIconBg: {
-  paddingHorizontal: 16,
-  paddingVertical: 5,
-  backgroundColor: 'transparent',
-},
-
-  navText: { fontSize: 12, color: '#0F172A', fontWeight: '500' },
-
-  navTextActive: {
-  color: '#2563EB',
-  fontWeight: 'bold',
-},
-
-
-
-  navBadge: {
+  
+  dropdownMenu: {
     position: 'absolute',
-    top: -3,
-    right: -8,
-    backgroundColor: '#EF4444',
-    borderRadius: 8,
-    width: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    top: 220, 
+    right: 15, 
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingVertical: 8,
+    width: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
 
+<<<<<<< HEAD
   navBadgeText: { fontSize: 9, color: '#FFFFFF', fontWeight: 'bold' },
   quickChatIconBtn: {
     padding: 6,
@@ -536,5 +549,23 @@ inactiveIconBg: {
     fontSize: 9,
     color: '#FFFFFF',
     fontWeight: 'bold',
+=======
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+
+  dropdownText: {
+    fontSize: 14,
+    color: '#0F172A',
+  },
+
+  dropdownTextActive: {
+    color: '#2563EB',
+    fontWeight: '600',
+>>>>>>> b1df116591788878b02e77674380e84707345c44
   },
 })

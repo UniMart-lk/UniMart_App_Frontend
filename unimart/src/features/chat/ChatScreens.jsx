@@ -1,18 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  TextInput,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Modal,
-  Alert,
-  ScrollView,
-} from 'react-native';
+import {View,Text,StyleSheet,FlatList,TouchableOpacity,TextInput,Image,KeyboardAvoidingView,Platform,Modal,Alert, ScrollView,} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -698,23 +685,9 @@ export function ChatScreen() {
           <Ionicons name="camera-outline" size={22} color={COLORS.textSecondary} />
         </TouchableOpacity>
 
-        <TextInput
-          style={styles.composerInput}
-          placeholder={isAdmin ? 'Message UniMart Support...' : 'Message seller...'}
-          placeholderTextColor={COLORS.textMuted}
-          value={inputText}
-          onChangeText={setInputText}
-          multiline
-          maxLength={1000}
-        />
+        <TextInput style={styles.composerInput} placeholder={isAdmin ? 'Message UniMart Support...' : 'Message seller...'} placeholderTextColor={COLORS.textMuted} value={inputText} onChangeText={setInputText} multiline maxLength={1000}/>
 
-        <TouchableOpacity
-          style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
-          disabled={!inputText.trim()}
-          onPress={handleSend}
-          accessibilityRole="button"
-          accessibilityLabel="Send message"
-        >
+        <TouchableOpacity style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]} disabled={!inputText.trim()} onPress={handleSend} accessibilityRole="button" accessibilityLabel="Send message">
           <Ionicons name="send" size={18} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
