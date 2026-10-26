@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import authService from '@/services/authService';
+import { useChat } from '@/features/chat/ChatContext';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { clearConversations } = useChat();
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,7 @@ export default function HomeScreen() {
   };
 
   const handleLogout = async () => {
+    clearConversations();
     try {
       await authService.logout();
       router.replace('/login');
@@ -50,6 +53,10 @@ export default function HomeScreen() {
       console.error('Logout error:', error);
       router.replace('/login');
     }
+  };
+
+  const handleBrowseRentals = () => {
+    router.push('/rentals');
   };
 
   return (
@@ -112,16 +119,29 @@ export default function HomeScreen() {
           </>
         )}
       </View>
+      <View>
+        {/* Rentals Entry Point */}
+        <TouchableOpacity
+          style={styles.rentalsButton}
+          onPress={handleBrowseRentals}
+          activeOpacity={0.85}
+          accessibilityLabel="Browse rentals"
+          accessibilityRole="button"
+        >
+          <Ionicons name="car-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.rentalsButtonText}>Browse Rentals</Text>
+        </TouchableOpacity>
 
-      {/* Logout Action */}
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={handleLogout}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="log-out-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-        <Text style={styles.logoutButtonText}>Log Out</Text>
-      </TouchableOpacity>
+        {/* Logout Action */}
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={handleLogout}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="log-out-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.logoutButtonText}>Log Out</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -232,6 +252,20 @@ const styles = StyleSheet.create({
     color: '#15803D',
     fontWeight: '500',
     flex: 1,
+  },
+  rentalsButton: {
+    backgroundColor: '#2563EB',
+    height: 50,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  rentalsButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   logoutButton: {
     backgroundColor: '#EF4444',
