@@ -14,14 +14,21 @@ const MAX_LONGITUDE_DELTA = 360;
 // Duration of the camera move when the rental locations change
 const REGION_ANIMATION_MS = 500;
 
-// Clustering: pins closer than CLUSTER_RADIUS screen pixels are grouped. Above CLUSTER_MAX_ZOOM
-// (street level) every rental is shown on its own.
+// Clustering: CLUSTER_RADIUS is in supercluster's 512-px tile units, so pins closer than ~30 dp on screen
+// (map tiles are 256 dp) are grouped. Above CLUSTER_MAX_ZOOM every rental
+// is shown on its own; that is one level below the map's max zoom, so a dense area is never drawn as hundreds of
+// single pins and every cluster can still be zoomed into until it splits.
 const CLUSTER_RADIUS = 60;
-const CLUSTER_MAX_ZOOM = 16;
 const MAX_MAP_ZOOM = 20;
+const CLUSTER_MAX_ZOOM = MAX_MAP_ZOOM - 1;
 // Clusters are computed for the visible area plus this fraction of it on each side,
 // so pins just off screen are ready when the user pans
 const CLUSTER_BOUNDS_PADDING = 0.5;
+// Single pins closer than this many screen pixels would cover each other (e.g. several rentals at one
+// hostel gate); they are fanned out around their shared spot so each one can be tapped
+const MARKER_SPREAD_PX = 28;
+// Map tiles are 256 px, so the world is 256 * 2^zoom pixels wide
+const TILE_SIZE = 256;
 
 // Plain decimal text such as "6.9271000", "-33.86" or "1e-7" (how a Prisma Decimal prints)
 const DECIMAL_PATTERN = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
@@ -219,7 +226,9 @@ export function getClusterBoundingBox(region) {
  * @returns {{ latitude: number, longitude: number, latitudeDelta: number, longitudeDelta: number }}
  */
 export function getRegionForZoom(center, zoom) {
-  const delta = Math.max(MAX_LONGITUDE_DELTA / Math.pow(2, zoom), MIN_REGION_DELTA / 4);
+  // Capped at the map's max zoom only: a cluster that splits just above CLUSTER_MAX_ZOOM must be reachable,
+  // otherwise tapping it zooms to the same level again and its rentals can never be opened
+  const delta = MAX_LONGITUDE_DELTA / Math.pow(2, Math.min(Math.max(zoom, 0), MAX_MAP_ZOOM));
 
   return {
     latitude: center.latitude,
@@ -227,6 +236,100 @@ export function getRegionForZoom(center, zoom) {
     latitudeDelta: Math.min(delta, MAX_LATITUDE_DELTA),
     longitudeDelta: Math.min(delta, MAX_LONGITUDE_DELTA),
   };
+}
+
+// Web-Mercator position in screen pixels at a zoom level (how the map itself draws coordinates)
+function toWorldPixels({ latitude, longitude }, zoom) {
+  const scale = TILE_SIZE * Math.pow(2, zoom);
+  const sin = Math.sin((latitude * Math.PI) / 180);
+  return {
+    x: ((longitude + 180) / 360) * scale,
+    y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale,
+  };
+}
+
+function fromWorldPixels({ x, y }, zoom) {
+  const scale = TILE_SIZE * Math.pow(2, zoom);
+  const n = Math.PI - (2 * Math.PI * y) / scale;
+  return {
+    latitude: (180 / Math.PI) * Math.atan(Math.sinh(n)),
+    longitude: (x / scale) * 360 - 180,
+  };
+}
+
+// Spread positions are recomputed on every pan, but a group's positions only change when its members or the
+// zoom change. Handing back the same object for the same position keeps the memoized RentalMarker from
+// re-rendering (and the native marker from being moved again) while the user pans.
+const spreadCoordinateCache = new Map();
+const SPREAD_CACHE_LIMIT = 500;
+
+function stableCoordinate(id, coordinate) {
+  const key = `${id}|${coordinate.latitude}|${coordinate.longitude}`;
+  const cached = spreadCoordinateCache.get(key);
+  if (cached) {
+    return cached;
+  }
+  if (spreadCoordinateCache.size >= SPREAD_CACHE_LIMIT) {
+    spreadCoordinateCache.clear();
+  }
+  spreadCoordinateCache.set(key, coordinate);
+  return coordinate;
+}
+
+/**
+ * Display positions for single pins that would overlap on screen
+ * Pins closer than MARKER_SPREAD_PX at this zoom are grouped and placed on a small circle around the group's
+ * centre (ordered by id, so a pin never jumps between renders). Pins that do not overlap are not returned.
+ * @param {object[]} locations - items from getRentalLocations that are shown as single pins
+ * @param {number} zoom
+ * @returns {Map<string, { latitude: number, longitude: number }>} location id -> display coordinate
+ */
+export function getSpreadCoordinates(locations, zoom) {
+  const spread = new Map();
+  const points = locations.map((location) => ({ location, pixels: toWorldPixels(location.coordinate, zoom) }));
+  const grouped = new Array(points.length).fill(false);
+
+  for (let i = 0; i < points.length; i++) {
+    if (grouped[i]) {
+      continue;
+    }
+
+    const group = [points[i]];
+    for (let j = i + 1; j < points.length; j++) {
+      if (
+        !grouped[j] &&
+        Math.hypot(points[j].pixels.x - points[i].pixels.x, points[j].pixels.y - points[i].pixels.y) < MARKER_SPREAD_PX
+      ) {
+        grouped[j] = true;
+        group.push(points[j]);
+      }
+    }
+
+    if (group.length < 2) {
+      continue;
+    }
+
+    group.sort((a, b) => (a.location.id < b.location.id ? -1 : a.location.id > b.location.id ? 1 : 0));
+    const centre = {
+      x: group.reduce((sum, point) => sum + point.pixels.x, 0) / group.length,
+      y: group.reduce((sum, point) => sum + point.pixels.y, 0) / group.length,
+    };
+    // Big enough that neighbouring pins on the circle are at least MARKER_SPREAD_PX apart
+    const radius = Math.max(MARKER_SPREAD_PX, (MARKER_SPREAD_PX * group.length) / (2 * Math.PI));
+
+    group.forEach((point, k) => {
+      const angle = (2 * Math.PI * k) / group.length - Math.PI / 2;
+      spread.set(
+        point.location.id,
+        stableCoordinate(
+          point.location.id,
+          fromWorldPixels({ x: centre.x + radius * Math.cos(angle), y: centre.y + radius * Math.sin(angle) }, zoom)
+        )
+      );
+    });
+  }
+
+  return spread;
 }
 
 /**
@@ -291,14 +394,15 @@ const ClusterMarker = React.memo(function ClusterMarker({ clusterId, latitude, l
  * Memoized: re-renders only when its location object or the select handler changes
  * @param {object} props
  * @param {object} props.location - item from getRentalLocations
+ * @param {object} [props.coordinate] - display position when the pin is fanned out; defaults to the rental's own
  * @param {function} [props.onSelect] - called with the rental when the callout is tapped
  */
-const RentalMarker = React.memo(function RentalMarker({ location, onSelect }) {
+const RentalMarker = React.memo(function RentalMarker({ location, coordinate, onSelect }) {
   const handleCalloutPress = useCallback(() => onSelect(location.rental), [onSelect, location]);
 
   return (
     <Marker
-      coordinate={location.coordinate}
+      coordinate={coordinate ?? location.coordinate}
       // Tapping the pin opens the callout; tapping the callout selects the rental
       onCalloutPress={onSelect ? handleCalloutPress : undefined}
     >
@@ -411,9 +515,23 @@ function RentalMap({ rentals, onRentalPress, style }) {
 
   // Re-queried when the visible area or the rental locations change
   const clusterRegion = visibleRegion ?? region;
+  const clusterZoom = clusterRegion ? getZoomForRegion(clusterRegion) : 0;
   const clusters = useMemo(
-    () => (clusterRegion ? clusterIndex.getClusters(getClusterBoundingBox(clusterRegion), getZoomForRegion(clusterRegion)) : []),
-    [clusterIndex, clusterRegion]
+    () => (clusterRegion ? clusterIndex.getClusters(getClusterBoundingBox(clusterRegion), clusterZoom) : []),
+    [clusterIndex, clusterRegion, clusterZoom]
+  );
+
+  // Above CLUSTER_MAX_ZOOM nearby rentals come back as separate pins that can cover each other; fan those out
+  const spreadCoordinates = useMemo(
+    () =>
+      getSpreadCoordinates(
+        clusters
+          .filter((feature) => !feature.properties.cluster)
+          .map((feature) => locationsById.get(feature.properties.locationId))
+          .filter(Boolean),
+        clusterZoom
+      ),
+    [clusters, locationsById, clusterZoom]
   );
 
   // Zoom in just far enough for the cluster to split into smaller groups or single rentals
@@ -508,6 +626,8 @@ function RentalMap({ rentals, onRentalPress, style }) {
             <RentalMarker
               key={`rental:${location.id}`}
               location={location}
+              // undefined for pins that do not overlap, so they keep their memoized props
+              coordinate={spreadCoordinates.get(location.id)}
               onSelect={hasPressHandler ? selectRental : undefined}
             />
           ) : null;
