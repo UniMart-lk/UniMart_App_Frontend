@@ -1,117 +1,17 @@
-<<<<<<< HEAD
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Alert } from 'react-native'
-=======
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, TouchableWithoutFeedback } from 'react-native'
->>>>>>> b1df116591788878b02e77674380e84707345c44
 import React from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons } from '@expo/vector-icons';
 import { ScrollView } from 'react-native';
 import { FlatList } from 'react-native';
-<<<<<<< HEAD
-import { router } from 'expo-router';
-import { useChat } from '@/features/chat/ChatContext';
-=======
 import BottomNav from '../../../components/BottomNav';
 import ProductCard from '../components/ProductCard';
 import { products } from '../data/mockData'; 
->>>>>>> b1df116591788878b02e77674380e84707345c44
 
-  // --- MOCK DATA ---
+  // --- MOCK DATA ---r
 const categories= ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
 
-<<<<<<< HEAD
-const products = [
-  {
-    id: '1',
-    title: 'Calculus Textbook',
-    price: 'LKR 1,500',
-    condition: 'Like New',
-    location: 'Sabaragamuwa Uni',
-    providerType: 'student', // 'student' or 'external'
-    image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&q=80',
-  },
-  {
-    id: '2',
-    title: 'iPhone 11 64GB',
-    price: 'LKR 85,000',
-    condition: 'Good',
-    location: 'Kandy',
-    providerType: 'external',
-    image: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&q=80',
-  },
-  {
-    id: '3',
-    title: 'Wooden Study Table',
-    price: 'LKR 8,500',
-    condition: 'Used',
-    location: 'Belihuloya',
-    providerType: 'student',
-    image: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=600&q=80',
-  },
-  {
-    id: '4',
-    title: 'Mountain Bike',
-    price: 'LKR 22,000',
-    condition: 'Like New',
-    location: 'Balangoda',
-    providerType: 'student',
-    image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=600&q=80',
-  },
-];
-
-export default function MarketPlaceHomeScreen() {
-  const { createOrGetConversation, unreadTotal } = useChat();
-  const [activeCategory, setActiveCategory] = React.useState('All');
-  const [activeTab, setActiveTab] = React.useState('marketplace');
-
-  const handleProductPress = (item) => {
-    Alert.alert(
-      item.title,
-      `${item.price} • ${item.condition}\nLocation: ${item.location}`,
-      [
-        { text: 'Close', style: 'cancel' },
-        {
-          text: '💬 Chat with Seller',
-          onPress: () => {
-            const sellerName = item.providerType === 'student' ? 'Student Seller' : 'Campus Merchant';
-            const convId = createOrGetConversation({
-              name: `${sellerName} (${item.title.split(' ')[0]})`,
-              role: 'seller',
-              badge: item.providerType === 'student' ? 'Student Seller' : 'Verified Merchant',
-              item: {
-                id: item.id,
-                title: item.title,
-                price: item.price,
-                category: 'Marketplace',
-                image: item.image,
-                location: item.location,
-              },
-            });
-            router.push({ pathname: '/chat/[id]', params: { id: convId } });
-          },
-        },
-      ]
-    );
-  };
-
-  // Render individual product card
-  const renderProduct = ({ item }) => (
-    <TouchableOpacity
-      style={styles.cardContainer}
-      activeOpacity={0.85}
-      onPress={() => handleProductPress(item)}
-    >
-      {/* Image & Badges */}
-      <View style={styles.imageContainer}>
-        <Image source={{ uri: item.image }} style={styles.image} />
-        
-        {/* Condition Badge */}
-        <View style={styles.conditionBadge}>
-          <Text style={styles.conditionText}>{item.condition}</Text>
-        </View>
-=======
 export default function MarketplaceHomeScreen() {
 
 const [activeCategory, setActiveCategory] = React.useState('All');
@@ -122,7 +22,6 @@ const [isDropdownVisible, setIsDropdownVisible] = React.useState(false);
 const [searchQuery, setSearchQuery] = React.useState('');
 
 const sortOptions = ['Newest', 'Price: Low to High', 'Price: High to Low', 'Highest Rated'];
->>>>>>> b1df116591788878b02e77674380e84707345c44
 
 // --- FILTER AND SORT LOGIC ---
 const getProcessedProducts = () => {
@@ -132,34 +31,6 @@ const getProcessedProducts = () => {
     return product.category === activeCategory;
   });
 
-<<<<<<< HEAD
-      {/* Details */}
-      <View style={styles.cardDetails}>
-        <Text style={styles.productTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.productPrice}>{item.price}</Text>
-        
-        <View style={styles.locationRow}>
-          <Ionicons name="location" size={12} color="#EF4444" style={{ marginRight: 4 }} />
-          <Text style={styles.locationText} numberOfLines={1}>{item.location}</Text>
-        </View>
-
-        {/* Provider Badge & Chat Shortcut */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View style={[styles.providerBadge, item.providerType === 'external' ? styles.bgTeal : styles.bgPurple]}>
-            <Text style={styles.providerIcon}>{item.providerType === 'external' ? <MaterialCommunityIcons name="earth" size={12} color="#FFFFFF" /> : <Ionicons name="school" size={12} color="#FFFFFF" />}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.quickChatIconBtn}
-            onPress={() => handleProductPress(item)}
-            accessibilityLabel={`Chat about ${item.title}`}
-          >
-            <Ionicons name="chatbubble-ellipses" size={14} color="#2563EB" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-=======
   // 2. Filter by Search Query (Case-insensitive)
   if (searchQuery.trim() !== '') {
     filtered = filtered.filter((product) => 
@@ -180,34 +51,23 @@ const getProcessedProducts = () => {
 };
 
 const displayProducts = getProcessedProducts();
->>>>>>> b1df116591788878b02e77674380e84707345c44
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+   <SafeAreaView style={styles.safeArea}>
       <StatusBar style="auto" />
 
-      {/* 1. HEADER */}
+       {/* 1. HEADER */}
       <View style={styles.header}>                    
-        <TouchableOpacity onPress={() => router.push('/home')}>
-          <Ionicons name='arrow-back' size={24} color="#0F172A" />
+        <TouchableOpacity>
+          <Ionicons name='arrow-back' size={25} color="#0F172A" />
         </TouchableOpacity>
        
         <View>
-          <Text style={{fontSize: 20, fontWeight:'bold', color: '#0F172A' }}>Marketplace</Text>
+         <Text style={{fontSize: 20, fontWeight:'bold', color: '#0F172A' }}>Marketplace</Text>
         </View>
 
-        <TouchableOpacity
-          onPress={() => router.push('/chat')}
-          style={{ position: 'relative', padding: 4 }}
-          accessibilityLabel="Open messages"
-        >
-          <Ionicons name="chatbubbles-outline" size={24} color="#2563EB" />
-          {unreadTotal > 0 && (
-            <View style={styles.headerChatBadge}>
-              <Text style={styles.headerChatBadgeText}>{unreadTotal}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={{width: 25, borderWidth:1, borderColor:'#ffffff'}}></View>
+
       </View>
 
        {/* 2. SEARCH & CATEGORIES */}
@@ -279,51 +139,6 @@ const displayProducts = getProcessedProducts();
       </View>
 
        {/* 5. BOTTOM NAVIGATION */}
-<<<<<<< HEAD
-      <View style={styles.bottomNavConatiner}>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/home')}>
-          <View style={styles.inactiveIconBg}>
-            <Ionicons name="home-sharp" size={24} color="#64748B" />
-          </View>
-          <Text style={styles.navText}>Home</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('marketplace')}>
-          <View style={styles.activeIconBg}>
-            <Ionicons name="storefront" size={24} color="#2563EB" />
-          </View>
-          <Text style={[styles.navText, styles.navTextActive]}>Marketplace</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/pages/myBookings')}>
-          <View style={styles.inactiveIconBg}>
-            <Ionicons name="car" size={24} color="#64748B" />
-          </View>
-          <Text style={styles.navText}>Rentals</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/chat')}>
-          <View style={styles.inactiveIconBg}>
-            <View>
-              <Ionicons name="chatbox" size={24} color="#64748B" />
-              {unreadTotal > 0 && (
-                <View style={styles.navBadge}>
-                  <Text style={styles.navBadgeText}>{unreadTotal}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-          <Text style={styles.navText}>Messages</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/home')}>
-          <View style={styles.inactiveIconBg}>
-            <Ionicons name="person" size={24} color="#64748B" />
-          </View>
-          <Text style={styles.navText}>Profile</Text>
-        </TouchableOpacity>
-      </View>
-=======
       <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* --- SORT DROPDOWN MODAL --- */}
@@ -362,7 +177,6 @@ const displayProducts = getProcessedProducts();
           </View>
         </TouchableWithoutFeedback>
       </Modal>
->>>>>>> b1df116591788878b02e77674380e84707345c44
 
    </SafeAreaView>
  
@@ -525,31 +339,6 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
 
-<<<<<<< HEAD
-  navBadgeText: { fontSize: 9, color: '#FFFFFF', fontWeight: 'bold' },
-  quickChatIconBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  headerChatBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: '#EF4444',
-    borderRadius: 8,
-    width: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerChatBadgeText: {
-    fontSize: 9,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-=======
   dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -566,6 +355,5 @@ const styles = StyleSheet.create({
   dropdownTextActive: {
     color: '#2563EB',
     fontWeight: '600',
->>>>>>> b1df116591788878b02e77674380e84707345c44
   },
 })
