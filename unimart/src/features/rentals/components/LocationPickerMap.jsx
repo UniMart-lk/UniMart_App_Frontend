@@ -39,6 +39,15 @@ export function toPickerCoordinate(latitude, longitude) {
   );
 }
 
+/**
+ * Format a coordinate for display, e.g. "6.9271000, 79.8612000"
+ * @param {{ latitude: number, longitude: number }} coordinate - valid coordinate from toPickerCoordinate
+ * @returns {string}
+ */
+export function formatCoordinate(coordinate) {
+  return `${coordinate.latitude.toFixed(COORDINATE_DECIMALS)}, ${coordinate.longitude.toFixed(COORDINATE_DECIMALS)}`;
+}
+
 // Compare coordinates by their rounded value instead of by object identity
 function getCoordinateKey(coordinate) {
   return coordinate ? `${coordinate.latitude}|${coordinate.longitude}` : null;
@@ -53,9 +62,11 @@ function getCoordinateKey(coordinate) {
  *   null, missing or invalid values show the fallback region with nothing selected
  * @param {function} [props.onChange] - called with { latitude, longitude } (rounded to 7 decimals) after the user moves the map
  * @param {object} [props.fallbackRegion] - region shown when value is not a valid coordinate
+ * @param {boolean} [props.showCoordinates=true] - show the selected coordinates over the map; turn off when
+ *   the parent screen displays them itself
  * @param {object} [props.style] - style for the outer container (give it a height or flex)
  */
-function LocationPickerMap({ value, onChange, fallbackRegion, style }) {
+function LocationPickerMap({ value, onChange, fallbackRegion, showCoordinates = true, style }) {
   const selected = toPickerCoordinate(value?.latitude, value?.longitude);
 
   // Applied once when the map mounts; later value changes animate the camera instead
@@ -198,18 +209,18 @@ function LocationPickerMap({ value, onChange, fallbackRegion, style }) {
         <View style={styles.pinDot} />
       </View>
 
-      <View style={styles.readout} pointerEvents="none" accessibilityLiveRegion="polite">
-        {selected ? (
-          <>
-            <Text style={styles.readoutTitle}>Pickup location</Text>
-            <Text style={styles.readoutCoordinates}>
-              {selected.latitude.toFixed(COORDINATE_DECIMALS)}, {selected.longitude.toFixed(COORDINATE_DECIMALS)}
-            </Text>
-          </>
-        ) : (
-          <Text style={styles.readoutHint}>Move the map to place the pin on the pickup location</Text>
-        )}
-      </View>
+      {showCoordinates ? (
+        <View style={styles.readout} pointerEvents="none" accessibilityLiveRegion="polite">
+          {selected ? (
+            <>
+              <Text style={styles.readoutTitle}>Pickup location</Text>
+              <Text style={styles.readoutCoordinates}>{formatCoordinate(selected)}</Text>
+            </>
+          ) : (
+            <Text style={styles.readoutHint}>Move the map to place the pin on the pickup location</Text>
+          )}
+        </View>
+      ) : null}
     </View>
   );
 }
