@@ -63,8 +63,18 @@ function toRentalKey(id) {
  * @returns {{ latitude: number, longitude: number }|null} null when coordinates are missing or invalid
  */
 export function getRentalCoordinate(rental) {
-  const latitude = toCoordinateNumber(rental?.vehicle?.latitude);
-  const longitude = toCoordinateNumber(rental?.vehicle?.longitude);
+  return getValidCoordinate(rental?.vehicle?.latitude, rental?.vehicle?.longitude);
+}
+
+/**
+ * Validate a latitude/longitude pair (numbers or decimal strings)
+ * @param {*} rawLatitude
+ * @param {*} rawLongitude
+ * @returns {{ latitude: number, longitude: number }|null} null when either value is missing or out of range
+ */
+export function getValidCoordinate(rawLatitude, rawLongitude) {
+  const latitude = toCoordinateNumber(rawLatitude);
+  const longitude = toCoordinateNumber(rawLongitude);
 
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     return null;
@@ -353,7 +363,7 @@ export function createClusterIndex(locations) {
 }
 
 // Only use a region reported by the map if every value is usable
-function isValidRegion(region) {
+export function isValidRegion(region) {
   return (
     region != null &&
     [region.latitude, region.longitude, region.latitudeDelta, region.longitudeDelta].every(
