@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import authService from '@/services/authService';
+import { useChat } from '@/features/chat/ChatContext';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { clearConversations } = useChat();
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,7 @@ export default function HomeScreen() {
   };
 
   const handleLogout = async () => {
+    clearConversations();
     try {
       await authService.logout();
       router.replace('/login');
@@ -116,7 +119,6 @@ export default function HomeScreen() {
           </>
         )}
       </View>
-
       <View>
         {/* Rentals Entry Point */}
         <TouchableOpacity
