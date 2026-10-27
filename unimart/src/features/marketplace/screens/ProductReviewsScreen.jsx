@@ -7,13 +7,13 @@ import {
   Image,
   ScrollView,
   FlatList,
-  SafeAreaView,
   Dimensions,
   StatusBar,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { products } from '../data/mockData';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
