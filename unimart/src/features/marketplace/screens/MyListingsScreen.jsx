@@ -202,6 +202,8 @@ export default function MyListingsScreen() {
         <View style={styles.headerTitleWrap}>
           <Text style={styles.headerTitle}>My Listings</Text>
         </View>
+
+         <View style={{width: 25, borderWidth:1, borderColor:'#ffffff'}}></View>
       </View>
 
       {/* --- 2. STATS SUMMARY ROW --- */}
