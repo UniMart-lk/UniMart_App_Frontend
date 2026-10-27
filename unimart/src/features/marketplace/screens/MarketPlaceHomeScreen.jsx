@@ -72,6 +72,18 @@ const displayProducts = getProcessedProducts();
 
       </View>
 
+        {/* GO TO MY LISTINGS BUTTON (Provider Only) */}
+      {userRole === 'provider' && (
+        <TouchableOpacity 
+          style={styles.goToListingsBtn}
+          onPress={() => router.push('/myListings')}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.goToListingsBtnText}>Go to My Listings</Text>
+          <Ionicons name="arrow-forward" size={17} color="#FFFFFF" style={{ marginLeft: 6 }} />
+        </TouchableOpacity>
+      )}
+
        {/* 2. SEARCH & CATEGORIES */}
       <View style={styles.searchBarContainer}>
         <View style={styles.placeholderContainer}>
@@ -106,17 +118,6 @@ const displayProducts = getProcessedProducts();
         ))}
       </ScrollView>
 
-      {/* GO TO MY LISTINGS BUTTON (Provider Only) */}
-      {userRole === 'provider' && (
-        <TouchableOpacity 
-          style={styles.goToListingsBtn}
-          onPress={() => router.push('/myListings')}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.goToListingsBtnText}>Go to My Listings</Text>
-          <Ionicons name="arrow-forward" size={17} color="#FFFFFF" style={{ marginLeft: 6 }} />
-        </TouchableOpacity>
-      )}
 
        {/* Results & Sort */}
       <View style={styles.resultsAndSortContainer}>
@@ -385,7 +386,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#2563EB',
     marginHorizontal: 15,
-    marginBottom: 12,
+    marginVertical: 12,
     paddingVertical: 12,
     borderRadius: 10,
     shadowColor: '#2563EB',
