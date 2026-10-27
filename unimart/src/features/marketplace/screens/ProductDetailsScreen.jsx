@@ -77,6 +77,38 @@ export default function ProductDetailsScreen() {
   };
   const providerDetails = product.provider || {};
 
+  // Reviews data from product or fallback
+  const productReviews = product.reviews || [];
+  const productReviewsCount = product.reviewsCount || (productReviews.length > 0 ? `${productReviews.length}` : '4.8k');
+  const displayedReviews = productReviews.slice(0, 4);
+
+  const navigateToAllReviews = () => {
+    router.push({ pathname: '/productReviews', params: { id: product.id } });
+  };
+
+  const renderReviewStars = (score, size = 12) => {
+    const full = Math.floor(score);
+    const hasHalf = score % 1 >= 0.3;
+    const stars = [];
+
+    for (let i = 1; i <= 5; i++) {
+      if (i <= full) {
+        stars.push(
+          <Ionicons key={i} name="star" size={size} color="#F59E0B" style={{ marginRight: 2 }} />
+        );
+      } else if (i === full + 1 && hasHalf) {
+        stars.push(
+          <Ionicons key={i} name="star-half" size={size} color="#F59E0B" style={{ marginRight: 2 }} />
+        );
+      } else {
+        stars.push(
+          <Ionicons key={i} name="star-outline" size={size} color="#CBD5E1" style={{ marginRight: 2 }} />
+        );
+      }
+    }
+    return <View style={{ flexDirection: 'row', alignItems: 'center' }}>{stars}</View>;
+  };
+
   // Similar products sorted to display Mountain Bike first, Calculus Textbook second, Study Table third
   const similarProducts = products
     .filter((p) => p.id !== product.id)
@@ -242,6 +274,73 @@ export default function ProductDetailsScreen() {
               <Text style={styles.viewOnMapLink}>View on Map</Text>
             </TouchableOpacity>
           </View>
+
+          <View style={styles.divider} />
+
+          {/* Reviews Section */}
+          <View style={styles.reviewsSectionHeader}>
+            <View style={styles.reviewsTitleRow}>
+              <Text style={styles.sectionTitle}>Reviews</Text>
+              <View style={styles.reviewsCountBadge}>
+                <Ionicons name="star" size={13} color="#F59E0B" />
+                <Text style={styles.reviewsRatingText}>{product.rating || '4.8'}</Text>
+                <Text style={styles.reviewsCountText}>({productReviewsCount} reviews)</Text>
+              </View>
+            </View>
+            <TouchableOpacity 
+              activeOpacity={0.7} 
+              onPress={navigateToAllReviews}
+            >
+              <Text style={styles.viewAllReviewsLink}>View All</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 4 Comment Reviews */}
+          <View style={styles.reviewsListContainer}>
+            {displayedReviews.map((rev) => (
+              <View key={rev.id} style={styles.reviewItemCard}>
+                <View style={styles.reviewItemHeader}>
+                  {rev.avatar ? (
+                    <Image source={{ uri: rev.avatar }} style={styles.reviewItemAvatar} />
+                  ) : (
+                    <View style={styles.reviewItemAvatarFallback}>
+                      <Text style={styles.reviewItemAvatarText}>
+                        {rev.name ? rev.name.charAt(0) : 'U'}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.reviewItemMeta}>
+                    <View style={styles.reviewItemNameRow}>
+                      <Text style={styles.reviewItemName}>{rev.name}</Text>
+                      <Text style={styles.reviewItemDate}>{rev.date}</Text>
+                    </View>
+                    <View style={styles.reviewItemStarsRow}>
+                      {renderReviewStars(rev.rating)}
+                      {rev.verified && (
+                        <View style={styles.reviewVerifiedBadge}>
+                          <Ionicons name="checkmark-circle" size={11} color="#059669" />
+                          <Text style={styles.reviewVerifiedText}>Verified</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </View>
+                <Text style={styles.reviewItemComment}>{rev.comment}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Read More Button under the last comment review */}
+          <TouchableOpacity
+            style={styles.readMoreReviewsButton}
+            activeOpacity={0.8}
+            onPress={navigateToAllReviews}
+          >
+            <Text style={styles.readMoreReviewsButtonText}>
+              Read More Reviews ({productReviewsCount})
+            </Text>
+            <Ionicons name="arrow-forward" size={16} color="#2563EB" />
+          </TouchableOpacity>
 
           <View style={styles.divider} />
 
@@ -700,6 +799,161 @@ const styles = StyleSheet.create({
   },
 
   viewOnMapLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+
+  // --- REVIEWS SECTION STYLES ---
+  reviewsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+
+  reviewsTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+
+  reviewsCountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 4,
+  },
+
+  reviewsRatingText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+
+  reviewsCountText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#92400E',
+  },
+
+  viewAllReviewsLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+
+  reviewsListContainer: {
+    gap: 12,
+    marginBottom: 14,
+  },
+
+  reviewItemCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+
+  reviewItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+
+  reviewItemAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#E2E8F0',
+  },
+
+  reviewItemAvatarFallback: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  reviewItemAvatarText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+
+  reviewItemMeta: {
+    marginLeft: 10,
+    flex: 1,
+  },
+
+  reviewItemNameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  reviewItemName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+
+  reviewItemDate: {
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+
+  reviewItemStarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    gap: 6,
+  },
+
+  reviewVerifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+
+  reviewVerifiedText: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#059669',
+  },
+
+  reviewItemComment: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#334155',
+  },
+
+  readMoreReviewsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 6,
+  },
+
+  readMoreReviewsButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#2563EB',

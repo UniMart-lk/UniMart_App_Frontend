@@ -201,17 +201,9 @@ export default function MyListingsScreen() {
 
         <View style={styles.headerTitleWrap}>
           <Text style={styles.headerTitle}>My Listings</Text>
-          <Text style={styles.headerSubtitle}>Provider Dashboard</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.headerPostBtn}
-          onPress={() => router.push('/postProduct')}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={18} color="#FFFFFF" />
-          <Text style={styles.headerPostBtnText}>Post</Text>
-        </TouchableOpacity>
+         <View style={{width: 25, borderWidth:1, borderColor:'#ffffff'}}></View>
       </View>
 
       {/* --- 2. STATS SUMMARY ROW --- */}
