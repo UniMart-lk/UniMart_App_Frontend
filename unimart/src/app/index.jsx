@@ -3,7 +3,7 @@ import WelcomeScreen1 from '@/features/auth_profile/screens/onboarding/WelcomeSc
 import MarketplaceHomeScreen from '@/features/marketplace/screens/MarketplaceHomeScreen';
 
 export default function Index() {
-  return <WelcomeScreen1 />;
+  return <MarketplaceHomeScreen />;
 }
 
 
