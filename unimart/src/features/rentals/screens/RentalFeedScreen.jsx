@@ -9,6 +9,20 @@ import RentalMap from '../components/RentalMap';
 // Defined outside the component so FlatList receives the same function on every render
 const keyExtractor = (item) => String(item.id);
 
+// Rentals from `page` that are not already in `existing` (or earlier in `page`), keeping the first copy.
+// Compared by list key, so 5 and '5' are the same rental; duplicate keys would break FlatList rendering.
+function withoutDuplicates(page, existing = []) {
+  const seen = new Set(existing.map(keyExtractor));
+  return page.filter((rental) => {
+    const key = keyExtractor(rental);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
 const VIEW_OPTIONS = [
   { value: 'list', label: 'List View' },
   { value: 'map', label: 'Map View' },
@@ -62,7 +76,7 @@ export default function RentalFeedScreen() {
       const { rentals: firstPage, nextCursor: firstCursor } = await getRentalFeed();
 
       if (requestId === latestRequestId.current) {
-        setRentals(firstPage);
+        setRentals(withoutDuplicates(firstPage));
         setNextCursor(firstPage.length > 0 ? firstCursor : null);
       }
     } catch (err) {
@@ -96,7 +110,7 @@ export default function RentalFeedScreen() {
       const { rentals: firstPage, nextCursor: firstCursor } = await getRentalFeed();
 
       if (requestId === latestRequestId.current) {
-        setRentals(firstPage);
+        setRentals(withoutDuplicates(firstPage));
         setNextCursor(firstPage.length > 0 ? firstCursor : null);
       }
     } catch (err) {
@@ -135,8 +149,10 @@ export default function RentalFeedScreen() {
 
       if (requestId === latestRequestId.current) {
         lastLoadedCursor.current = cursor;
-        setRentals((current) => [...current, ...nextPage]);
-        // Stop paging on an empty page or a cursor that did not move, to avoid a request loop
+        // Skip rentals already shown (e.g. data changed on the server between requests)
+        setRentals((current) => [...current, ...withoutDuplicates(nextPage, current)]);
+        // Stop paging on an empty page or a cursor that did not move, to avoid a request loop.
+        // Uses the page as received, so a page that only repeats shown rentals still moves on.
         setNextCursor(nextPage.length === 0 || newCursor === cursor ? null : newCursor);
         setLoadMoreError(null);
       }
