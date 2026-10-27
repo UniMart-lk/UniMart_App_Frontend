@@ -8,11 +8,13 @@ import { FlatList } from 'react-native';
 import BottomNav from '../../../components/BottomNav';
 import ProductCard from '../components/ProductCard';
 import { products } from '../data/mockData'; 
+import { useRouter } from 'expo-router';
 
   // --- MOCK DATA ---r
 const categories= ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
 
 export default function MarketplaceHomeScreen() {
+const router = useRouter();
 
 const [activeCategory, setActiveCategory] = React.useState('All');
 const [activeTab, setActiveTab] = React.useState('marketplace'); 
@@ -58,7 +60,7 @@ const displayProducts = getProcessedProducts();
 
        {/* 1. HEADER */}
       <View style={styles.header}>                    
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
           <Ionicons name='arrow-back' size={25} color="#0F172A" />
         </TouchableOpacity>
        
@@ -132,7 +134,11 @@ const displayProducts = getProcessedProducts();
 
         {/* 4. FLOATING ACTION BUTTON (FAB) */}
        {userRole === 'provider' && (
-          <TouchableOpacity style={styles.fab}>
+          <TouchableOpacity 
+            style={styles.fab}
+            activeOpacity={0.85}
+            onPress={() => router.push('/postProduct')}
+          >
             <Ionicons name="add" size={30} color="#FFFFFF" />
           </TouchableOpacity>
         )}
