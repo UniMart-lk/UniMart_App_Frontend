@@ -60,8 +60,8 @@ const displayProducts = getProcessedProducts();
 
        {/* 1. HEADER */}
       <View style={styles.header}>                    
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name='arrow-back' size={25} color="#0F172A" />
+        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={styles.headerBackBtn}>
+          <Ionicons name='arrow-back' size={24} color="#0F172A" />
         </TouchableOpacity>
        
         <View>
@@ -105,6 +105,18 @@ const displayProducts = getProcessedProducts();
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* GO TO MY LISTINGS BUTTON (Provider Only) */}
+      {userRole === 'provider' && (
+        <TouchableOpacity 
+          style={styles.goToListingsBtn}
+          onPress={() => router.push('/myListings')}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.goToListingsBtnText}>Go to My Listings</Text>
+          <Ionicons name="arrow-forward" size={17} color="#FFFFFF" style={{ marginLeft: 6 }} />
+        </TouchableOpacity>
+      )}
 
        {/* Results & Sort */}
       <View style={styles.resultsAndSortContainer}>
@@ -360,6 +372,32 @@ const styles = StyleSheet.create({
 
   dropdownTextActive: {
     color: '#2563EB',
+    fontWeight: '600',
+  },
+
+  headerBackBtn: {
+    padding: 4,
+  },
+
+  goToListingsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2563EB',
+    marginHorizontal: 15,
+    marginBottom: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
+  goToListingsBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
     fontWeight: '600',
   },
 })
