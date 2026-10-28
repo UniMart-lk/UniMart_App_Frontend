@@ -24,9 +24,9 @@ export default function WelcomeScreen4({ navigation, onFinish } = {}) {
       navigation.navigate('Login');
     } else {
       try {
-        router.push('/login');
+        router.replace('/login');
       } catch {
-        // Fallback route when login screen is created
+        router.push('/login');
       }
     }
   };
