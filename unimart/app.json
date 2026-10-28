@@ -31,7 +31,8 @@
           "image": "./assets/images/unimart_icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
