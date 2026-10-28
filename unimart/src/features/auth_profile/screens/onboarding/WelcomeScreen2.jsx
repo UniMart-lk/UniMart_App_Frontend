@@ -38,9 +38,9 @@ export default function WelcomeScreen2({ navigation, onNext, onSkip } = {}) {
       navigation.navigate('Login');
     } else {
       try {
-        router.push('/login');
+        router.replace('/login');
       } catch {
-        // Fallback for skip
+        router.push('/login');
       }
     }
   };
