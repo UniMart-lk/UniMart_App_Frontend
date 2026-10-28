@@ -10,7 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import authService from '@/services/authService';
+import authService from '../services/authService';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
