@@ -62,16 +62,16 @@ export default function LoginScreen({ navigation } = {}) {
       const result = await authService.login(trimmedEmail, password);
       console.log('Login successful! Logged in user:', result.user?.email);
 
-      // 3. Navigate to Main/Home screen
+      // 3. Navigate to Marketplace (default home after login)
       if (navigation?.replace) {
-        navigation.replace('Home');
+        navigation.replace('marketplace');
       } else if (navigation?.navigate) {
-        navigation.navigate('Home');
+        navigation.navigate('marketplace');
       } else {
         try {
-          router.replace('/home');
+          router.replace('/marketplace');
         } catch {
-          router.push('/home');
+          router.push('/marketplace');
         }
       }
     } catch (error) {

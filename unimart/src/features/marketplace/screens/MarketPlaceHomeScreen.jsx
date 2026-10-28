@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, TouchableWithoutFeedback } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, TouchableWithoutFeedback, BackHandler } from 'react-native'
 import React from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
@@ -8,7 +8,7 @@ import { FlatList } from 'react-native';
 import BottomNav from '../../../components/BottomNav';
 import ProductCard from '../components/ProductCard';
 import { products } from '../data/mockData'; 
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 
   // --- MOCK DATA ---r
 const categories= ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
@@ -24,6 +24,15 @@ const [isDropdownVisible, setIsDropdownVisible] = React.useState(false);
 const [searchQuery, setSearchQuery] = React.useState('');
 
 const sortOptions = ['Newest', 'Price: Low to High', 'Price: High to Low', 'Highest Rated'];
+
+// Prevent navigating back to welcome or login screens from main marketplace screen
+useFocusEffect(
+  React.useCallback(() => {
+    const onBackPress = () => true;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [])
+);
 
 // --- FILTER AND SORT LOGIC ---
 const getProcessedProducts = () => {
@@ -60,16 +69,7 @@ const displayProducts = getProcessedProducts();
 
        {/* 1. HEADER */}
       <View style={styles.header}>                    
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={styles.headerBackBtn}>
-          <Ionicons name='arrow-back' size={24} color="#0F172A" />
-        </TouchableOpacity>
-       
-        <View>
-         <Text style={{fontSize: 20, fontWeight:'bold', color: '#0F172A' }}>Marketplace</Text>
-        </View>
-
-        <View style={{width: 25, borderWidth:1, borderColor:'#ffffff'}}></View>
-
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#0F172A' }}>Marketplace</Text>
       </View>
 
         {/* GO TO MY LISTINGS BUTTON (Provider Only) */}
