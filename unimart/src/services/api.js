@@ -101,7 +101,7 @@ export async function apiRequest(endpoint, options = {}) {
       throw timeoutError;
     }
 
-    // Network / connection refused errors
+    // Network / connection refused errors                      
     if (error.message && error.message.includes('Network request failed')) {
       const networkError = new Error(`Cannot connect to backend at ${baseUrl}. Ensure your backend server is running.`);
       networkError.status = 0;
