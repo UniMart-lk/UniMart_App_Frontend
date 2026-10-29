@@ -221,7 +221,9 @@ export default function MarketplaceHomeScreen() {
             <View style={[styles.moreMenuBox, { top: menuPosition.top, right: menuPosition.right }]}>
               
               {userRole === 'provider' && (
-                <TouchableOpacity
+
+                <>
+                   <TouchableOpacity
                   style={styles.moreMenuItem}
                   onPress={() => {
                     setIsMenuVisible(false);
@@ -233,6 +235,18 @@ export default function MarketplaceHomeScreen() {
                     My Store
                   </Text>
                 </TouchableOpacity>
+                
+                 <TouchableOpacity
+                    style={styles.moreMenuItem}
+                    onPress={() => {
+                      setIsMenuVisible(false);
+                      // TODO: Navigate to Inbox screen
+                    }}
+                  >
+                    <Ionicons name="chatbubbles-outline" size={18} color="#475569" />
+                    <Text style={styles.moreMenuText}>Inbox</Text>
+                  </TouchableOpacity>
+                </>
               )}
 
               <TouchableOpacity
