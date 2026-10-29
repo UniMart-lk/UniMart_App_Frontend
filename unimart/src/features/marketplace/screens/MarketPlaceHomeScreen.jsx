@@ -8,6 +8,7 @@ import BottomNav from '../../../components/BottomNav';
 import ProductCard from '../components/ProductCard';
 import { products } from '../data/mockData'; 
 import { useRouter, useFocusEffect } from 'expo-router';
+import FilterModal from '../components/FilterModal'; 
 
 const categories = ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
 
@@ -21,6 +22,7 @@ export default function MarketplaceHomeScreen() {
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
 
   // 👇 State to store the position of the 3-dot icon
   const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
@@ -112,7 +114,8 @@ export default function MarketplaceHomeScreen() {
           </TouchableOpacity>
         )}
         <View style={styles.searchDivider} />
-        <TouchableOpacity>
+        
+         <TouchableOpacity onPress={() => setIsFilterVisible(true)}>
           <Ionicons name="options-outline" size={22} color="#0F172A" />
         </TouchableOpacity>
       </View>
