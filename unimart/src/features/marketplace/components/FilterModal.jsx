@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { 
   View, Text, StyleSheet, Modal, TouchableOpacity, 
-  ScrollView, TouchableWithoutFeedback, Dimensions 
+  ScrollView, Dimensions, Pressable 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import Slider from '@react-native-community/slider';
 
 const { height } = Dimensions.get('window');
@@ -37,14 +38,18 @@ export default function FilterModal({ visible, onClose, onApply, currentFilters 
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
-
-        <View style={styles.bottomSheet}>
-          {/* Header */}
+      <StatusBar style="light" />
+      
+      {/* 👇 WRAP EVERYTHING IN A PRESSABLE */}
+      <Pressable style={styles.overlay} onPress={onClose}>
+        
+        {/* 👇 STOP PROPAGATION SO CLICKING INSIDE DOESN'T CLOSE */}
+        <Pressable 
+          style={styles.bottomSheet} 
+          onStartShouldSetResponder={() => true}
+        >
           <View style={styles.dragHandle} />
+          
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Filters</Text>
             <TouchableOpacity onPress={handleClearAll}>
@@ -52,21 +57,24 @@ export default function FilterModal({ visible, onClose, onApply, currentFilters 
             </TouchableOpacity>
           </View>
 
-          {/* Scrollable Content */}
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             
             {/* 1. CATEGORY */}
             <Text style={styles.sectionTitle}>CATEGORY</Text>
             <View style={styles.chipGrid}>
-              {categories.map(cat => (
-                <TouchableOpacity 
-                  key={cat} 
-                  style={[styles.chip, selectedCategory === cat && styles.chipActive]}
-                  onPress={() => setSelectedCategory(selectedCategory === cat ? '' : cat)}
-                >
-                  <Text style={[styles.chipText, selectedCategory === cat && styles.chipTextActive]}>{cat}</Text>
-                </TouchableOpacity>
-              ))}
+              {categories.map(cat => {
+                const isSelected = selectedCategory === cat;
+                return (
+                  <TouchableOpacity 
+                    key={cat} 
+                    style={[styles.chip, isSelected && styles.chipActive]}
+                    onPress={() => setSelectedCategory(isSelected ? '' : cat)}
+                  >
+                    {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" style={{ marginRight: 4 }} />}
+                    <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>{cat}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {/* 2. PRICE RANGE */}
@@ -153,15 +161,19 @@ export default function FilterModal({ visible, onClose, onApply, currentFilters 
               <Text style={styles.applyBtnText}>Show results</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </Pressable>
+
+      </Pressable>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  overlay: { 
+    flex: 1, 
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)' // 👈 The background dimming is now on the root overlay
+  },
   bottomSheet: {
     backgroundColor: '#FFF',
     borderTopLeftRadius: 24,
@@ -182,36 +194,30 @@ const styles = StyleSheet.create({
   
   sectionTitle: { fontSize: 12, fontWeight: '700', color: '#64748B', marginTop: 20, marginBottom: 12, letterSpacing: 0.5 },
   
-  // Chips
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: '#E2E8F0' },
+  chip: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: '#E2E8F0' },
   chipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  chipText: { fontSize: 13, color: '#475569' },
+  chipText: { fontSize: 13, color: '#475569', fontWeight: '500' },
   chipTextActive: { color: '#FFF', fontWeight: '600' },
 
-  // Price
   priceLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   priceLabelText: { fontSize: 12, color: '#64748B', fontWeight: '500' },
 
-  // Conditions
   checkboxGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   checkboxRow: { flexDirection: 'row', alignItems: 'center', width: '45%', marginBottom: 8 },
   checkbox: { width: 20, height: 20, borderWidth: 2, borderColor: '#CBD5E1', borderRadius: 4, marginRight: 10, alignItems: 'center', justifyContent: 'center' },
   checkboxActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
   checkboxLabel: { fontSize: 14, color: '#0F172A' },
 
-  // Radio
   radioRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#CBD5E1', marginRight: 10, alignItems: 'center', justifyContent: 'center' },
   radioOuterActive: { borderColor: '#2563EB' },
   radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2563EB' },
   radioLabel: { fontSize: 14, color: '#0F172A' },
 
-  // Rating
   ratingRow: { flexDirection: 'row', alignItems: 'center' },
   ratingLabel: { fontSize: 14, fontWeight: '600', color: '#0F172A', marginLeft: 8 },
 
-  // Bottom Bar
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', padding: 20, paddingBottom: 30,

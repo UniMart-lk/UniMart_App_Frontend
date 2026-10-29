@@ -6,9 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScrollView, FlatList } from 'react-native';
 import BottomNav from '../../../components/BottomNav';
 import ProductCard from '../components/ProductCard';
+import FilterModal from '../components/FilterModal'; // 👈 Import FilterModal
 import { products } from '../data/mockData'; 
 import { useRouter, useFocusEffect } from 'expo-router';
-import FilterModal from '../components/FilterModal'; 
 
 const categories = ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
 
@@ -22,9 +22,17 @@ export default function MarketplaceHomeScreen() {
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // 👇 Filter Modal States
   const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState({
+    category: '',
+    maxPrice: 100000,
+    conditions: [],
+    providerType: 'All',
+    minRating: 0,
+  });
 
-  // 👇 State to store the position of the 3-dot icon
   const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
   const menuIconRef = useRef(null);
 
@@ -40,16 +48,32 @@ export default function MarketplaceHomeScreen() {
 
   const getProcessedProducts = () => {
     let filtered = products.filter((product) => {
-      if (activeCategory === 'All') return true;
-      return product.category === activeCategory;
+      // 1. Horizontal Category Filter
+      if (activeCategory !== 'All' && product.category !== activeCategory) return false;
+      
+      // 2. Modal Category Filter
+      if (appliedFilters.category && product.category !== appliedFilters.category) return false;
+      
+      // 3. Max Price Filter
+      if (product.numericPrice > appliedFilters.maxPrice) return false;
+      
+      // 4. Condition Filter
+      if (appliedFilters.conditions.length > 0 && !appliedFilters.conditions.includes(product.condition)) return false;
+      
+      // 5. Rating Filter
+      if (parseFloat(product.rating) < appliedFilters.minRating) return false;
+
+      return true;
     });
 
+    // 6. Search Query Filter
     if (searchQuery.trim() !== '') {
       filtered = filtered.filter((product) => 
         product.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
       );
     }
 
+    // 7. Sorting
     if (sortOption === 'Price: Low to High') {
       filtered.sort((a, b) => a.numericPrice - b.numericPrice);
     } else if (sortOption === 'Price: High to Low') {
@@ -63,13 +87,12 @@ export default function MarketplaceHomeScreen() {
 
   const displayProducts = getProcessedProducts();
 
-  // 👇 Function to calculate where the icon is on the screen before opening the modal
   const openMenu = () => {
     if (menuIconRef.current) {
       menuIconRef.current.measure((fx, fy, width, height, px, py) => {
         setMenuPosition({
-          top: py + height + 8, // Adds 8px space below the icon
-          right: 15, // Aligns right side with padding
+          top: py + height + 8, 
+          right: 15, 
         });
         setIsMenuVisible(true);
       });
@@ -88,7 +111,6 @@ export default function MarketplaceHomeScreen() {
 
         <Text style={styles.headerTitle}>Marketplace</Text>
         
-        {/* 👇 Attach the ref to the menu button */}
         <TouchableOpacity 
           ref={menuIconRef}
           style={styles.backButton}
@@ -115,7 +137,8 @@ export default function MarketplaceHomeScreen() {
         )}
         <View style={styles.searchDivider} />
         
-         <TouchableOpacity onPress={() => setIsFilterVisible(true)}>
+        {/* 👇 Opens Filter Modal */}
+        <TouchableOpacity onPress={() => setIsFilterVisible(true)}>
           <Ionicons name="options-outline" size={22} color="#0F172A" />
         </TouchableOpacity>
       </View>
@@ -150,7 +173,6 @@ export default function MarketplaceHomeScreen() {
          numColumns={2}
          columnWrapperStyle={styles.row}
          showsVerticalScrollIndicator={false}
-         // 👇 INCREASED PADDING so FAB doesn't hide the last row
          contentContainerStyle={{ paddingBottom: 120 }} 
          ListEmptyComponent={
            <View style={styles.emptyState}>
@@ -220,35 +242,34 @@ export default function MarketplaceHomeScreen() {
         <TouchableWithoutFeedback onPress={() => setIsMenuVisible(false)}>
           <View style={styles.modalOverlay}>
             
-            {/* 👇 Apply the dynamic position calculated by openMenu */}
             <View style={[styles.moreMenuBox, { top: menuPosition.top, right: menuPosition.right }]}>
               
               {userRole === 'provider' && (
-
                 <>
-                   <TouchableOpacity
-                  style={styles.moreMenuItem}
-                  onPress={() => {
-                    setIsMenuVisible(false);
-                    router.push('/myListings');
-                  }}
-                >
-                  <Ionicons name="storefront-outline" size={18} color="#2563EB" />
-                  <Text style={[styles.moreMenuText, { color: '#2563EB', fontWeight: '600' }]}>
-                    My Store
-                  </Text>
-                </TouchableOpacity>
-                
-                 <TouchableOpacity
+                  <TouchableOpacity
                     style={styles.moreMenuItem}
                     onPress={() => {
                       setIsMenuVisible(false);
-                      // TODO: Navigate to Inbox screen
+                      router.push('/myListings');
+                    }}
+                  >
+                    <Ionicons name="storefront-outline" size={18} color="#2563EB" />
+                    <Text style={[styles.moreMenuText, { color: '#2563EB', fontWeight: '600' }]}>
+                      My Store
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.moreMenuItem}
+                    onPress={() => {
+                      setIsMenuVisible(false);
                     }}
                   >
                     <Ionicons name="chatbubbles-outline" size={18} color="#475569" />
                     <Text style={styles.moreMenuText}>Inbox</Text>
                   </TouchableOpacity>
+                  
+                  <View style={{ height: 1, backgroundColor: '#E2E8F0', marginVertical: 4 }} />
                 </>
               )}
 
@@ -276,6 +297,18 @@ export default function MarketplaceHomeScreen() {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* --- FILTER MODAL --- */}
+      <FilterModal 
+        visible={isFilterVisible} 
+        onClose={() => setIsFilterVisible(false)}
+        onApply={(filters) => {
+          setAppliedFilters(filters);
+          // Clear horizontal chip filter if they use the modal
+          setActiveCategory('All'); 
+        }}
+        currentFilters={appliedFilters}
+      />
 
    </SafeAreaView>
   )
@@ -458,7 +491,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Note: Removed 'top' and 'right' from here because they are now dynamic
   moreMenuBox: {
     position: 'absolute',
     backgroundColor: '#FFFFFF',
