@@ -15,7 +15,8 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { products } from '../data/mockData'; 
+import { products as fallbackProducts } from '../data/mockData'; 
+import marketplaceService from '../../../services/marketplaceService';
 
 const { width } = Dimensions.get('window');
 
@@ -27,10 +28,35 @@ export default function ProductDetailsScreen() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [similarFavorites, setSimilarFavorites] = useState({});
 
-  // Find the product based on ID, fallback to product 2 (iPhone 11) if testing or no ID passed
-  const product = id 
-    ? products.find((p) => p.id === id) 
-    : (products.find((p) => p.id === '2') || products[0]);
+  // Product state: initialize from fallback, then update with live API response
+  const [product, setProduct] = useState(() => {
+    return id 
+      ? fallbackProducts.find((p) => String(p.id) === String(id)) || fallbackProducts[0]
+      : fallbackProducts[0];
+  });
+  const [isLoading, setIsLoading] = useState(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    async function fetchLiveProduct() {
+      if (!id) return;
+      try {
+        setIsLoading(true);
+        const liveData = await marketplaceService.getProductById(id);
+        if (liveData && isMounted) {
+          setProduct(liveData);
+        }
+      } catch (err) {
+        console.warn('Could not fetch live product details:', err.message);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+    fetchLiveProduct();
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
 
   if (!product) {
     return (
