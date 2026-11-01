@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, TouchableWithoutFeedback, BackHandler } from 'react-native'
-import React, { useState, useRef } from 'react'
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, TouchableWithoutFeedback, BackHandler, RefreshControl, ActivityIndicator } from 'react-native'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons } from '@expo/vector-icons';
@@ -7,21 +7,26 @@ import { ScrollView, FlatList } from 'react-native';
 import BottomNav from '../../../components/BottomNav';
 import ProductCard from '../components/ProductCard';
 import FilterModal from '../components/FilterModal'; // 👈 Import FilterModal
-import { products } from '../data/mockData'; 
+import { products as fallbackProducts } from '../data/mockData'; 
 import { useRouter, useFocusEffect } from 'expo-router';
+import marketplaceService from '../../../services/marketplaceService';
+import authService from '../../../services/authService';
 
-const categories = ['All', 'Electronics', 'Books', 'Furniture', 'Clothing'];
+const categories = ['All', 'Electronics', 'Books', 'Furniture', 'Clothing', 'Sports'];
 
 export default function MarketplaceHomeScreen() {
   const router = useRouter();
 
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeTab, setActiveTab] = useState('marketplace'); 
-  const [userRole, setUserRole] = useState('provider'); 
+  const [isProvider, setIsProvider] = useState(false); 
   const [sortOption, setSortOption] = useState('Newest');
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [productsList, setProductsList] = useState(fallbackProducts);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   // 👇 Filter Modal States
   const [isFilterVisible, setIsFilterVisible] = useState(false);
@@ -38,16 +43,47 @@ export default function MarketplaceHomeScreen() {
 
   const sortOptions = ['Newest', 'Price: Low to High', 'Price: High to Low', 'Highest Rated'];
 
+  const checkUserRole = useCallback(async () => {
+    try {
+      const user = await authService.getStoredUser();
+      const role = (user?.role || '').toUpperCase();
+      const hasProviderProfile = !!user?.providerProfile;
+      const userIsProvider = role === 'PROVIDER' || role === 'ADMIN' || hasProviderProfile;
+      setIsProvider(userIsProvider);
+    } catch {
+      setIsProvider(false);
+    }
+  }, []);
+
+  const fetchLiveProducts = useCallback(async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      }
+      const data = await marketplaceService.getProducts();
+      if (Array.isArray(data) && data.length > 0) {
+        setProductsList(data);
+      }
+    } catch (err) {
+      console.warn('Error fetching live marketplace products:', err.message);
+    } finally {
+      if (isRefresh) setRefreshing(false);
+      setLoading(false);
+    }
+  }, []);
+
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
+      checkUserRole();
+      fetchLiveProducts();
       const onBackPress = () => true;
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => subscription.remove();
-    }, [])
+    }, [checkUserRole, fetchLiveProducts])
   );
 
   const getProcessedProducts = () => {
-    let filtered = products.filter((product) => {
+    let filtered = productsList.filter((product) => {
       // 1. Horizontal Category Filter
       if (activeCategory !== 'All' && product.category !== activeCategory) return false;
       
@@ -63,17 +99,23 @@ export default function MarketplaceHomeScreen() {
       // 5. Rating Filter
       if (parseFloat(product.rating) < appliedFilters.minRating) return false;
 
+      // 6. Provider Type Filter
+      if (appliedFilters.providerType && appliedFilters.providerType !== 'All') {
+        const expectedType = appliedFilters.providerType.toLowerCase();
+        if (product.providerType !== expectedType) return false;
+      }
+
       return true;
     });
 
-    // 6. Search Query Filter
+    // 7. Search Query Filter
     if (searchQuery.trim() !== '') {
       filtered = filtered.filter((product) => 
         product.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
       );
     }
 
-    // 7. Sorting
+    // 8. Sorting
     if (sortOption === 'Price: Low to High') {
       filtered.sort((a, b) => a.numericPrice - b.numericPrice);
     } else if (sortOption === 'Price: High to Low') {
@@ -174,6 +216,14 @@ export default function MarketplaceHomeScreen() {
          columnWrapperStyle={styles.row}
          showsVerticalScrollIndicator={false}
          contentContainerStyle={{ paddingBottom: 120 }} 
+         refreshControl={
+           <RefreshControl
+             refreshing={refreshing}
+             onRefresh={() => fetchLiveProducts(true)}
+             colors={['#2563EB']}
+             tintColor="#2563EB"
+           />
+         }
          ListEmptyComponent={
            <View style={styles.emptyState}>
              <Ionicons name="search" size={40} color="#CBD5E1" />
@@ -183,7 +233,7 @@ export default function MarketplaceHomeScreen() {
         />
 
         {/* 4. FLOATING ACTION BUTTON (FAB) */}
-       {userRole === 'provider' && (
+        {isProvider && (
           <TouchableOpacity 
             style={styles.fab}
             activeOpacity={0.85}
@@ -244,7 +294,7 @@ export default function MarketplaceHomeScreen() {
             
             <View style={[styles.moreMenuBox, { top: menuPosition.top, right: menuPosition.right }]}>
               
-              {userRole === 'provider' && (
+              {isProvider && (
                 <>
                   <TouchableOpacity
                     style={styles.moreMenuItem}

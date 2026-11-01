@@ -12,8 +12,9 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { products } from '../data/mockData';
+import { products as fallbackProducts } from '../data/mockData';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import marketplaceService from '../../../services/marketplaceService';
 
 const { width } = Dimensions.get('window');
 
@@ -24,9 +25,28 @@ export default function ProductReviewsScreen() {
   const [helpfulMap, setHelpfulMap] = useState({});
 
   // Locate the product by ID or fallback
-  const product = id
-    ? products.find((p) => p.id === id)
-    : (products.find((p) => p.id === '2') || products[0]);
+  const [product, setProduct] = useState(() => {
+    return id
+      ? fallbackProducts.find((p) => String(p.id) === String(id)) || fallbackProducts[0]
+      : fallbackProducts[0];
+  });
+
+  React.useEffect(() => {
+    let isMounted = true;
+    async function fetchReviews() {
+      if (!id) return;
+      try {
+        const live = await marketplaceService.getProductById(id);
+        if (live && isMounted) {
+          setProduct(live);
+        }
+      } catch (e) {
+        console.warn('Failed to load live product reviews:', e.message);
+      }
+    }
+    fetchReviews();
+    return () => { isMounted = false; };
+  }, [id]);
 
   if (!product) {
     return (

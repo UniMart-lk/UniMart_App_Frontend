@@ -14,12 +14,14 @@ import {
   Platform,
   KeyboardAvoidingView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { products } from '../data/mockData';
+import marketplaceService from '../../../services/marketplaceService';
 
 const { width } = Dimensions.get('window');
 
@@ -142,6 +144,7 @@ export default function PostProductScreen() {
   const [isPublishSuccessVisible, setIsPublishSuccessVisible] = useState(false);
   const [publishedProductId, setPublishedProductId] = useState(null);
   const [savedDraftAlert, setSavedDraftAlert] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // --- CATEGORY SELECTION ---
   const handleSelectCategory = (selectedCat) => {
@@ -202,7 +205,7 @@ export default function PostProductScreen() {
   };
 
   // --- VALIDATE AND PUBLISH ---
-  const handlePublish = () => {
+  const handlePublish = async () => {
     // Validation
     if (!title.trim()) {
       Alert.alert('Required Field', 'Please enter a Product Name.');
@@ -236,52 +239,80 @@ export default function PostProductScreen() {
       (d) => d.label.trim() !== '' && d.value.trim() !== ''
     );
 
-    // Build product ID
-    const newId = (Date.now()).toString();
+    setIsSubmitting(true);
 
-    // Prepare complete product object adhering strictly to mockData.js format
-    const newProduct = {
-      id: newId,
-      title: title.trim(),
-      price: `LKR ${numPrice.toLocaleString()}`,
-      numericPrice: numPrice,
-      condition: condition,
-      location: location.trim(),
-      providerType: providerType, // 'student' or 'external'
-      category: category,
-      rating: '5.0',
-      description: description.trim(),
-      images: photos.length > 0
-        ? photos
-        : ['https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&q=80'],
-      details: validDetails.length > 0 ? validDetails : [
-        { label: 'Category', value: category },
-        { label: 'Condition', value: condition },
-      ],
-      locationDetails: {
-        address: detailedAddress.trim()
-          ? `${detailedAddress.trim()}, ${location.trim()}`
-          : `${location.trim()}, Campus Area`,
-        mapImage: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800&q=80',
-      },
-      provider: {
-        name: providerType === 'student' ? 'Dilshan Silva (Student)' : 'Campus Mart Vendor',
-        type: providerType === 'student' ? 'Student Provider' : 'External Provider',
-        isVerified: true,
+    try {
+      // 1. Call backend marketplace service to store in database
+      const created = await marketplaceService.createProduct({
+        title: title.trim(),
+        price: numPrice,
+        condition,
+        location: location.trim(),
+        detailedAddress: detailedAddress.trim(),
+        category,
+        description: description.trim(),
+        photos,
+        details: validDetails,
+        allowNegotiation,
+        providerType,
+      });
+
+      if (created) {
+        products.unshift(created);
+        setPublishedProductId(created.id);
+      } else {
+        const newId = (Date.now()).toString();
+        setPublishedProductId(newId);
+      }
+      setIsPublishSuccessVisible(true);
+    } catch (apiError) {
+      console.warn('API publish encountered error, fallback to local save:', apiError.message);
+
+      // Local fallback in case user is offline or not logged in
+      const newId = (Date.now()).toString();
+      const newProduct = {
+        id: newId,
+        title: title.trim(),
+        price: `LKR ${numPrice.toLocaleString()}`,
+        numericPrice: numPrice,
+        condition: condition,
+        location: location.trim(),
+        providerType: providerType, // 'student' or 'external'
+        category: category,
         rating: '5.0',
-        reviewsCount: 1,
-        memberSince: 'Oct 2026',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80',
-      },
-      allowNegotiation: allowNegotiation,
-      createdAt: new Date().toISOString(),
-    };
+        description: description.trim(),
+        images: photos.length > 0
+          ? photos
+          : ['https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&q=80'],
+        details: validDetails.length > 0 ? validDetails : [
+          { label: 'Category', value: category },
+          { label: 'Condition', value: condition },
+        ],
+        locationDetails: {
+          address: detailedAddress.trim()
+            ? `${detailedAddress.trim()}, ${location.trim()}`
+            : `${location.trim()}, Campus Area`,
+          mapImage: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800&q=80',
+        },
+        provider: {
+          name: providerType === 'student' ? 'Dilshan Silva (Student)' : 'Campus Mart Vendor',
+          type: providerType === 'student' ? 'Student Provider' : 'External Provider',
+          isVerified: true,
+          rating: '5.0',
+          reviewsCount: 1,
+          memberSince: 'Oct 2026',
+          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80',
+        },
+        allowNegotiation: allowNegotiation,
+        createdAt: new Date().toISOString(),
+      };
 
-    // Prepend to mockData products array so it instantly shows in MarketplaceHomeScreen
-    products.unshift(newProduct);
-
-    setPublishedProductId(newId);
-    setIsPublishSuccessVisible(true);
+      products.unshift(newProduct);
+      setPublishedProductId(newId);
+      setIsPublishSuccessVisible(true);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -730,11 +761,16 @@ export default function PostProductScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.publishBtn}
+          style={[styles.publishBtn, isSubmitting && { opacity: 0.7 }]}
           onPress={handlePublish}
+          disabled={isSubmitting}
           activeOpacity={0.85}
         >
-          <Text style={styles.publishBtnText}>Publish Listing</Text>
+          {isSubmitting ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.publishBtnText}>Publish Listing</Text>
+          )}
         </TouchableOpacity>
       </View>
 
