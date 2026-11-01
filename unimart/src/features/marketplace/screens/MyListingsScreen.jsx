@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,15 @@ import {
   Image,
   Alert,
   Dimensions,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { products } from '../data/mockData';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { products as fallbackProducts } from '../data/mockData';
+import marketplaceService from '../../../services/marketplaceService';
 
 const { width } = Dimensions.get('window');
 
@@ -21,15 +24,37 @@ export default function MyListingsScreen() {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'drafts' | 'sold'
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [myProducts, setMyProducts] = useState(() => {
-    // Show products where providerType is student or user provider items, default to mockData
-    return products.map((item, idx) => ({
+    return fallbackProducts.map((item, idx) => ({
       ...item,
       viewsCount: 24 + idx * 17,
       status: idx === 3 ? 'sold' : 'active',
       inquiriesCount: 2 + idx,
     }));
   });
+
+  const loadListings = useCallback(async (isRefresh = false) => {
+    try {
+      if (isRefresh) setRefreshing(true);
+      const data = await marketplaceService.getMyListings();
+      if (Array.isArray(data) && data.length > 0) {
+        setMyProducts(data);
+      }
+    } catch (e) {
+      console.warn('Failed to load my listings:', e.message);
+    } finally {
+      if (isRefresh) setRefreshing(false);
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadListings();
+    }, [loadListings])
+  );
 
   const activeCount = myProducts.filter((p) => p.status === 'active').length;
   const soldCount = myProducts.filter((p) => p.status === 'sold').length;
@@ -49,12 +74,18 @@ export default function MyListingsScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Mark as Sold',
-          onPress: () => {
+          onPress: async () => {
+            // Optimistic update
             setMyProducts((prev) =>
               prev.map((item) =>
                 item.id === id ? { ...item, status: 'sold' } : item
               )
             );
+            try {
+              await marketplaceService.updateProductStatus(id, 'sold');
+            } catch (err) {
+              console.warn('Backend mark as sold update failed:', err.message);
+            }
           },
         },
       ]
@@ -70,12 +101,13 @@ export default function MyListingsScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            // Optimistic update
             setMyProducts((prev) => prev.filter((item) => item.id !== id));
-            // Also remove from products in mockData if present
-            const index = products.findIndex((p) => p.id === id);
-            if (index > -1) {
-              products.splice(index, 1);
+            try {
+              await marketplaceService.deleteProduct(id);
+            } catch (err) {
+              console.warn('Backend delete listing failed:', err.message);
             }
           },
         },
@@ -291,6 +323,14 @@ export default function MyListingsScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadListings(true)}
+              colors={['#2563EB']}
+              tintColor="#2563EB"
+            />
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
