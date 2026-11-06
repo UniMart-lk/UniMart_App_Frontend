@@ -9,6 +9,9 @@ import {
   isOnboardingCompleted,
   setHasAccount,
   hasExistingAccount,
+  setProfileCompleted,
+  isProfileCompletedStorage,
+  getStoredBadgeType,
 } from './storage';
 
 /**
@@ -96,12 +99,23 @@ export const authService = {
    * @returns {Promise<object>}
    */
   async getCurrentUser() {
-    const response = await apiRequest('/auth/me', { method: 'GET' });
-    const user = response?.data?.user;
-    if (user) {
-      await saveUser(user);
+    try {
+      const response = await apiRequest('/auth/me', { method: 'GET' });
+      const user = response?.data?.user;
+      if (user) {
+        // If profile was completed on device, ensure completion is preserved
+        const completedOnDevice = await isProfileCompletedStorage();
+        if (completedOnDevice) {
+          if (!user.userProfile) user.userProfile = {};
+          user.userProfile.isCompleted = true;
+        }
+        await saveUser(user);
+        return user;
+      }
+    } catch (err) {
+      // Return null on network error to allow using local stored user
     }
-    return user;
+    return null;
   },
 
   /**
@@ -109,6 +123,15 @@ export const authService = {
    * @param {object} profileData
    */
   async updateProfile(profileData) {
+    const detectedBadge = profileData.badgeType || (
+      profileData.isProvider
+        ? (profileData.providerType === 'EXTERNAL_PROVIDER' ? 'EXTERNAL_PROVIDER' : 'STUDENT_PROVIDER')
+        : 'STUDENT'
+    );
+
+    // Save completion flag & badge type locally
+    await setProfileCompleted(true, detectedBadge);
+
     try {
       const response = await apiRequest('/auth/profile', {
         method: 'PUT',
@@ -117,6 +140,8 @@ export const authService = {
 
       const updatedUser = response?.data?.user;
       if (updatedUser) {
+        if (!updatedUser.userProfile) updatedUser.userProfile = {};
+        updatedUser.userProfile.isCompleted = true;
         await saveUser(updatedUser);
         return updatedUser;
       }
@@ -128,9 +153,13 @@ export const authService = {
     const currentUser = (await getUser()) || {};
     const mergedUser = {
       ...currentUser,
+      role: profileData.isProvider ? 'PROVIDER' : (currentUser.role || 'USER'),
       userProfile: {
         ...(currentUser.userProfile || {}),
         fullName: profileData.fullName || currentUser.userProfile?.fullName,
+        userType: profileData.isProvider
+          ? (profileData.providerType === 'EXTERNAL_PROVIDER' ? 'EXTERNAL' : 'STUDENT')
+          : 'STUDENT',
         university: profileData.university !== undefined ? profileData.university : currentUser.userProfile?.university,
         faculty: profileData.faculty !== undefined ? profileData.faculty : currentUser.userProfile?.faculty,
         universityIdNumber: profileData.studentRegistrationNumber || currentUser.userProfile?.universityIdNumber,
@@ -142,6 +171,10 @@ export const authService = {
         currentUser.providerProfile || profileData.isProvider
           ? {
               ...(currentUser.providerProfile || {}),
+              providerType:
+                profileData.providerType ||
+                currentUser.providerProfile?.providerType ||
+                (profileData.isProvider ? 'STUDENT_PROVIDER' : undefined),
               displayName:
                 profileData.providerDisplayName ||
                 currentUser.providerProfile?.displayName ||
@@ -205,6 +238,27 @@ export const authService = {
    */
   async setOnboardingCompleted() {
     return await setOnboardingCompleted();
+  },
+
+  /**
+   * Check if profile has been marked completed on device
+   */
+  async isProfileCompleted() {
+    return await isProfileCompletedStorage();
+  },
+
+  /**
+   * Mark profile as completed on device
+   */
+  async setProfileCompleted(completed = true, badgeType = null) {
+    return await setProfileCompleted(completed, badgeType);
+  },
+
+  /**
+   * Get stored badge type
+   */
+  async getStoredBadgeType() {
+    return await getStoredBadgeType();
   },
 };
 
