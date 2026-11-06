@@ -26,6 +26,8 @@ export default function ProfileScreen({ navigation } = {}) {
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [profileCompletedLocal, setProfileCompletedLocal] = useState(false);
+  const [storedBadge, setStoredBadge] = useState(null);
 
   // Refresh profile data when screen comes into focus
   useFocusEffect(
@@ -46,16 +48,28 @@ export default function ProfileScreen({ navigation } = {}) {
 
   const loadUserData = async () => {
     try {
-      // 1. Try locally cached user
+      // 1. Check local device completion flag & stored badge
+      const comp = await authService.isProfileCompleted();
+      const badge = await authService.getStoredBadgeType();
+      if (comp) setProfileCompletedLocal(true);
+      if (badge) setStoredBadge(badge);
+
+      // 2. Try locally cached user
       const stored = await authService.getStoredUser();
       if (stored) {
         setUser(stored);
+        if (stored?.userProfile?.isCompleted) {
+          setProfileCompletedLocal(true);
+        }
       }
 
-      // 2. Fetch fresh user profile from backend API
+      // 3. Fetch fresh user profile from backend API
       const fresh = await authService.getCurrentUser();
       if (fresh) {
         setUser(fresh);
+        if (fresh?.userProfile?.isCompleted) {
+          setProfileCompletedLocal(true);
+        }
       }
     } catch (err) {
       console.log('Error loading profile info:', err.message);
@@ -68,6 +82,8 @@ export default function ProfileScreen({ navigation } = {}) {
     setLoggingOut(true);
     try {
       await authService.logout();
+      setProfileCompletedLocal(false);
+      setStoredBadge(null);
       setShowLogoutModal(false);
       router.replace('/login');
     } catch (error) {
@@ -91,19 +107,24 @@ export default function ProfileScreen({ navigation } = {}) {
     user?.userProfile?.contactNumber ||
     '+94 77 123 4567';
 
-  // Profile completion status
-  const isProfileCompleted = Boolean(user?.userProfile?.isCompleted);
+  // Profile completion status: database isCompleted OR local completed flag
+  const isProfileCompleted = Boolean(user?.userProfile?.isCompleted) || profileCompletedLocal;
 
   // User Type: STUDENT, STUDENT_PROVIDER, or EXTERNAL_PROVIDER
   const isProvider =
+    storedBadge === 'EXTERNAL_PROVIDER' ||
+    storedBadge === 'STUDENT_PROVIDER' ||
     user?.role === 'PROVIDER' ||
     Boolean(user?.providerProfile);
 
   const isExternal =
+    storedBadge === 'EXTERNAL_PROVIDER' ||
     user?.providerProfile?.providerType === 'EXTERNAL_PROVIDER' ||
     user?.userProfile?.userType === 'EXTERNAL';
 
-  const userType = isProvider
+  const userType = storedBadge
+    ? storedBadge
+    : isProvider
     ? isExternal
       ? 'EXTERNAL_PROVIDER'
       : 'STUDENT_PROVIDER'
