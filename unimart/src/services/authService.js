@@ -1,5 +1,15 @@
 import { apiRequest } from './api';
-import { saveToken, saveUser, clearAuth, getUser, getToken } from './storage';
+import {
+  saveToken,
+  saveUser,
+  clearAuth,
+  getUser,
+  getToken,
+  setOnboardingCompleted,
+  isOnboardingCompleted,
+  setHasAccount,
+  hasExistingAccount,
+} from './storage';
 
 /**
  * Auth Service module for UniMart
@@ -46,6 +56,38 @@ export const authService = {
       await saveUser(user);
     }
 
+    // Mark account exists and onboarding completed so welcome screens are never shown again
+    await setHasAccount(true);
+    await setOnboardingCompleted();
+
+    return { token, user };
+  },
+
+  /**
+   * Register a new user and persist credentials
+   * @param {object} registrationData
+   * @returns {Promise<{ token: string, user: object }>}
+   */
+  async register(registrationData) {
+    const response = await apiRequest('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(registrationData),
+    });
+
+    const token = response?.data?.token;
+    const user = response?.data?.user;
+
+    if (token) {
+      await saveToken(token);
+    }
+    if (user) {
+      await saveUser(user);
+    }
+
+    // Mark account exists and onboarding completed so welcome screens are never shown again
+    await setHasAccount(true);
+    await setOnboardingCompleted();
+
     return { token, user };
   },
 
@@ -55,7 +97,64 @@ export const authService = {
    */
   async getCurrentUser() {
     const response = await apiRequest('/auth/me', { method: 'GET' });
-    return response?.data?.user;
+    const user = response?.data?.user;
+    if (user) {
+      await saveUser(user);
+    }
+    return user;
+  },
+
+  /**
+   * Update profile details and persist locally and on backend
+   * @param {object} profileData
+   */
+  async updateProfile(profileData) {
+    try {
+      const response = await apiRequest('/auth/profile', {
+        method: 'PUT',
+        body: JSON.stringify(profileData),
+      });
+
+      const updatedUser = response?.data?.user;
+      if (updatedUser) {
+        await saveUser(updatedUser);
+        return updatedUser;
+      }
+    } catch (err) {
+      console.log('Backend profile sync failed or offline, updating locally:', err.message);
+    }
+
+    // Merge into local storage as fallback
+    const currentUser = (await getUser()) || {};
+    const mergedUser = {
+      ...currentUser,
+      userProfile: {
+        ...(currentUser.userProfile || {}),
+        fullName: profileData.fullName || currentUser.userProfile?.fullName,
+        university: profileData.university !== undefined ? profileData.university : currentUser.userProfile?.university,
+        faculty: profileData.faculty !== undefined ? profileData.faculty : currentUser.userProfile?.faculty,
+        universityIdNumber: profileData.studentRegistrationNumber || currentUser.userProfile?.universityIdNumber,
+        nicNumber: profileData.nicNumber || currentUser.userProfile?.nicNumber,
+        profilePictureUrl: profileData.profilePictureUrl || currentUser.userProfile?.profilePictureUrl,
+        isCompleted: true,
+      },
+      providerProfile:
+        currentUser.providerProfile || profileData.isProvider
+          ? {
+              ...(currentUser.providerProfile || {}),
+              displayName:
+                profileData.providerDisplayName ||
+                currentUser.providerProfile?.displayName ||
+                profileData.fullName,
+              description: profileData.description || currentUser.providerProfile?.description,
+              businessName: profileData.businessName || currentUser.providerProfile?.businessName,
+              serviceArea: profileData.serviceArea || currentUser.providerProfile?.serviceArea,
+            }
+          : undefined,
+    };
+
+    await saveUser(mergedUser);
+    return mergedUser;
   },
 
   /**
@@ -85,6 +184,27 @@ export const authService = {
    */
   async logout() {
     await clearAuth();
+  },
+
+  /**
+   * Check if user already has an account on this app
+   */
+  async hasExistingAccount() {
+    return await hasExistingAccount();
+  },
+
+  /**
+   * Check if onboarding has already been completed / seen
+   */
+  async isOnboardingCompleted() {
+    return await isOnboardingCompleted();
+  },
+
+  /**
+   * Mark onboarding as completed
+   */
+  async setOnboardingCompleted() {
+    return await setOnboardingCompleted();
   },
 };
 

@@ -27,9 +27,10 @@ export default function ProfileScreen({ navigation } = {}) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Hardware back press on Profile returns to marketplace, never logs out
+  // Refresh profile data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      loadUserData();
       const onBackPress = () => {
         router.replace('/marketplace');
         return true;
@@ -90,15 +91,28 @@ export default function ProfileScreen({ navigation } = {}) {
     user?.userProfile?.contactNumber ||
     '+94 77 123 4567';
 
-  const isStudent =
-    user?.userProfile?.userType === 'STUDENT' ||
-    user?.providerProfile?.providerType === 'STUDENT_PROVIDER' ||
-    true; // Default to Student badge as shown in mockup
+  // Profile completion status
+  const isProfileCompleted = Boolean(user?.userProfile?.isCompleted);
+
+  // User Type: STUDENT, STUDENT_PROVIDER, or EXTERNAL_PROVIDER
+  const isProvider =
+    user?.role === 'PROVIDER' ||
+    Boolean(user?.providerProfile);
+
+  const isExternal =
+    user?.providerProfile?.providerType === 'EXTERNAL_PROVIDER' ||
+    user?.userProfile?.userType === 'EXTERNAL';
+
+  const userType = isProvider
+    ? isExternal
+      ? 'EXTERNAL_PROVIDER'
+      : 'STUDENT_PROVIDER'
+    : 'STUDENT';
 
   const isVerified =
     user?.providerProfile?.verificationStatus === 'VERIFIED' ||
     user?.emailVerified ||
-    true; // Default to Verified badge as shown in mockup
+    false;
 
   const listingsCount = user?.providerProfile?.totalListings || 0;
   const rentalsCount = 3;
@@ -114,10 +128,7 @@ export default function ProfileScreen({ navigation } = {}) {
 
         <TouchableOpacity
           style={styles.editHeaderBtn}
-          onPress={() => {
-            // Optional: edit profile action
-            Alert.alert('Edit Profile', 'Profile editing will open your details editor.');
-          }}
+          onPress={() => router.push('/editProfile')}
           activeOpacity={0.7}
           accessibilityLabel="Edit Profile"
         >
@@ -138,10 +149,23 @@ export default function ProfileScreen({ navigation } = {}) {
               style={styles.avatarImage}
               resizeMode="cover"
             />
-            {/* Small circular graduation badge overlaid on avatar */}
-            <View style={styles.avatarBadgeCircle}>
-              <Ionicons name="school" size={13} color="#FFFFFF" />
-            </View>
+            {/* Circular badge on avatar: only shown after profile is completed */}
+            {isProfileCompleted && (
+              <View
+                style={[
+                  styles.avatarBadgeCircle,
+                  userType === 'EXTERNAL_PROVIDER' && { backgroundColor: '#0D9488' },
+                  userType === 'STUDENT_PROVIDER' && { backgroundColor: '#6366F1' },
+                  userType === 'STUDENT' && { backgroundColor: '#8B5CF6' },
+                ]}
+              >
+                <Ionicons
+                  name={userType === 'EXTERNAL_PROVIDER' ? 'business' : 'school'}
+                  size={13}
+                  color="#FFFFFF"
+                />
+              </View>
+            )}
           </View>
 
           {/* User Name */}
@@ -151,20 +175,40 @@ export default function ProfileScreen({ navigation } = {}) {
           <Text style={styles.userEmailText}>{displayEmail}</Text>
           <Text style={styles.userPhoneText}>{displayPhone}</Text>
 
-          {/* Role & Verification Badges */}
-          <View style={styles.badgesRow}>
-            {/* Student Badge (Purple Pill) */}
-            <View style={styles.studentPill}>
-              <Ionicons name="school" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
-              <Text style={styles.studentPillText}>{isStudent ? 'Student' : 'External'}</Text>
-            </View>
+          {/* Role & Verification Badges: ONLY displayed if profile is completed */}
+          {isProfileCompleted && (
+            <View style={styles.badgesRow}>
+              {/* 1. Student Badge (Purple Pill) */}
+              {userType === 'STUDENT' && (
+                <View style={styles.studentPill}>
+                  <Ionicons name="school" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.badgePillText}>Student</Text>
+                </View>
+              )}
 
-            {/* Verified Badge (Green Pill) */}
-            <View style={styles.verifiedPill}>
-              <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
-              <Text style={styles.verifiedPillText}>{isVerified ? 'Verified' : 'Pending'}</Text>
+              {/* 2. Student Provider Badge (Indigo Pill) */}
+              {userType === 'STUDENT_PROVIDER' && (
+                <View style={styles.studentProviderPill}>
+                  <Ionicons name="school" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
+                  <Text style={styles.badgePillText}>Student Provider</Text>
+                </View>
+              )}
+
+              {/* 3. External Provider Badge (Teal Pill) */}
+              {userType === 'EXTERNAL_PROVIDER' && (
+                <View style={styles.externalProviderPill}>
+                  <Ionicons name="business" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.badgePillText}>External Provider</Text>
+                </View>
+              )}
+
+              {/* Verified Badge */}
+              <View style={styles.verifiedPill}>
+                <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
+                <Text style={styles.badgePillText}>{isVerified ? 'Verified' : 'Active'}</Text>
+              </View>
             </View>
-          </View>
+          )}
         </View>
 
         {/* 3. STATS SUMMARY CARD */}
@@ -195,12 +239,41 @@ export default function ProfileScreen({ navigation } = {}) {
           </View>
         </View>
 
+        {/* INCOMPLETE PROFILE WARNING BANNER (Shown above Edit Profile if not completed) */}
+        {!isProfileCompleted && (
+          <View style={styles.incompleteBannerCard}>
+            <View style={styles.incompleteBannerTop}>
+              <View style={styles.incompleteIconBox}>
+                <Ionicons name="alert-circle" size={22} color="#D97706" />
+              </View>
+              <View style={styles.incompleteTextContainer}>
+                <Text style={styles.incompleteBannerTitle}>Complete Your Profile</Text>
+                <Text style={styles.incompleteBannerMessage}>
+                  {isProvider
+                    ? 'Complete your profile first without completing the detail you can not able to sell or rent vehicales/product.'
+                    : 'Complete your profile first without completing the detail you can not able to buy or rent.'}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.incompleteActionButton}
+              onPress={() => router.push('/editProfile')}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="create-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.incompleteActionText}>Complete Profile Now</Text>
+              <Ionicons name="chevron-forward" size={16} color="#FFFFFF" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* 4. MENU ITEMS CARD */}
         <View style={styles.menuCard}>
           {/* Row 1: Edit Profile */}
           <TouchableOpacity
             style={styles.menuRow}
-            onPress={() => Alert.alert('Edit Profile', 'Edit profile screen.')}
+            onPress={() => router.push('/editProfile')}
             activeOpacity={0.7}
           >
             <View style={styles.menuIconBox}>
@@ -427,32 +500,114 @@ const styles = StyleSheet.create({
   badgesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
   studentPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#8B5CF6',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
   },
-  studentPillText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
+  studentProviderPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6366F1',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  externalProviderPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0D9488',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
   verifiedPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#059669',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
   },
+  badgePillText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  studentPillText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
   verifiedPillText: {
     color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  // Incomplete Banner
+  incompleteBannerCard: {
+    backgroundColor: '#FFFBEB',
+    marginHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#FDE68A',
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#D97706',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  incompleteBannerTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  incompleteIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    marginTop: 2,
+  },
+  incompleteTextContainer: {
+    flex: 1,
+  },
+  incompleteBannerTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#92400E',
+    marginBottom: 3,
+  },
+  incompleteBannerMessage: {
     fontSize: 13,
+    color: '#78350F',
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  incompleteActionButton: {
+    backgroundColor: '#D97706',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  incompleteActionText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
     fontWeight: '700',
   },
   // Stats Card

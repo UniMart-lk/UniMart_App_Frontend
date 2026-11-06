@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
   ActivityIndicator,
+  BackHandler,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,15 +29,50 @@ export default function LoginScreen({ navigation } = {}) {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [canGoBackToWelcome, setCanGoBackToWelcome] = useState(false);
+
+  useEffect(() => {
+    const checkAuthAndAccount = async () => {
+      // 1. If actively authenticated, go straight to marketplace
+      const isAuth = await authService.isAuthenticated();
+      if (isAuth) {
+        router.replace('/marketplace');
+        return;
+      }
+
+      // 2. If user already has an account or completed onboarding, do NOT show back to welcome
+      const hasAccount = await authService.hasExistingAccount();
+      const onboardingCompleted = await authService.isOnboardingCompleted();
+      setCanGoBackToWelcome(!hasAccount && !onboardingCompleted);
+    };
+
+    checkAuthAndAccount();
+  }, []);
+
+  // Hardware back press: never go back to welcome if account exists or onboarding done
+  useEffect(() => {
+    const onBackPress = () => {
+      if (!canGoBackToWelcome) {
+        BackHandler.exitApp();
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [canGoBackToWelcome]);
 
   const handleBack = () => {
+    if (!canGoBackToWelcome) {
+      return;
+    }
     if (navigation?.goBack) {
       navigation.goBack();
     } else {
       try {
         router.back();
       } catch {
-        router.push('/');
+        // do not navigate to welcome
       }
     }
   };
@@ -112,15 +148,19 @@ export default function LoginScreen({ navigation } = {}) {
 
       {/* Top Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={handleBack}
-          activeOpacity={0.7}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <Text style={styles.backArrow}>←</Text>
-        </TouchableOpacity>
+        {canGoBackToWelcome ? (
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBack}
+            activeOpacity={0.7}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
+            <Text style={styles.backArrow}>←</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerLeftPlaceholder} />
+        )}
 
         <Text style={styles.headerTitle}>Welcome back</Text>
 
@@ -292,6 +332,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   headerRightPlaceholder: {
+    width: 40,
+  },
+  headerLeftPlaceholder: {
     width: 40,
   },
   keyboardAvoid: {

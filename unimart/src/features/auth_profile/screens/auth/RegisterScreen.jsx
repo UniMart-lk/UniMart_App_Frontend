@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
+  Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,7 +22,7 @@ export default function RegisterScreen({ navigation } = {}) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  // Step state: 1 = Basic Account Registration, 2 = Provider Verification (only for providers)
+  // Step state: 1 = Basic Account Registration, 2 = Provider Verification, 'otp' = Inbox Email Verification
   const [step, setStep] = useState(1);
 
   // User type: 'buyer' ("I want to buy & rent") or 'provider' ("I'm a provider")
@@ -35,6 +36,9 @@ export default function RegisterScreen({ navigation } = {}) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
+
+  // OTP Verification Form State
+  const [otpCode, setOtpCode] = useState('123456');
 
   // Provider Type: 'Student Provider' | 'External Provider'
   const [providerType, setProviderType] = useState('Student Provider');
@@ -101,7 +105,7 @@ export default function RegisterScreen({ navigation } = {}) {
 
   // Navigation handlers
   const handleBack = () => {
-    if (step === 2) {
+    if (step === 2 || step === 'otp') {
       setStep(1);
       setErrorMessage('');
       return;
@@ -135,14 +139,25 @@ export default function RegisterScreen({ navigation } = {}) {
   const validateBasicForm = () => {
     const trimmedEmail = email.trim();
     const trimmedContact = contactNumber.trim();
+    const isStudent =
+      userType === 'buyer' ||
+      (userType === 'provider' && providerType.toLowerCase().includes('student'));
 
     if (!trimmedEmail) {
-      setErrorMessage('Please enter your email address.');
+      setErrorMessage(
+        isStudent
+          ? 'Please enter your university email address.'
+          : 'Please enter your email address.'
+      );
       return false;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
-      setErrorMessage('Please enter a valid email address.');
+      setErrorMessage(
+        isStudent
+          ? 'Please enter a valid university email address.'
+          : 'Please enter a valid email address.'
+      );
       return false;
     }
     if (!trimmedContact) {
@@ -169,7 +184,7 @@ export default function RegisterScreen({ navigation } = {}) {
       setErrorMessage('Passwords do not match. Please re-enter.');
       return false;
     }
-    if (!agreeTerms) {
+    if (userType === 'buyer' && !agreeTerms) {
       setErrorMessage('Please agree to the account terms and privacy notice.');
       return false;
     }
@@ -236,22 +251,10 @@ export default function RegisterScreen({ navigation } = {}) {
         setErrorMessage('');
         setStep(2);
       } else {
-        // Buyer & renter account creation via backend
-        setLoading(true);
+        // Buyer & renter account: Proceed to OTP email verification
         setErrorMessage('');
-        try {
-          await authService.register({
-            email: email.trim(),
-            password: password,
-            contactNumber: contactNumber.trim(),
-            role: 'USER',
-          });
-          setShowSuccessModal(true);
-        } catch (error) {
-          setErrorMessage(error.message || 'Registration failed. Please try again.');
-        } finally {
-          setLoading(false);
-        }
+        setOtpCode('123456');
+        setStep('otp');
       }
     } else if (step === 2) {
       if (!validateVerificationForm()) return;
@@ -294,6 +297,79 @@ export default function RegisterScreen({ navigation } = {}) {
     }
   };
 
+  // OTP Confirmation handler for buyer & provider account creation
+  const handleConfirmOtp = async () => {
+    const trimmedOtp = otpCode.trim();
+    if (!trimmedOtp) {
+      setErrorMessage('Please enter the verification code.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage('');
+
+    const isProvider = userType === 'provider';
+    const isStudentProvider = providerType.toLowerCase().includes('student');
+
+    try {
+      // 1. Register or login user with backend
+      try {
+        await authService.register({
+          email: email.trim(),
+          password: password,
+          contactNumber: contactNumber.trim(),
+          role: isProvider ? 'PROVIDER' : 'USER',
+          providerType: isProvider
+            ? isStudentProvider
+              ? 'STUDENT_PROVIDER'
+              : 'EXTERNAL_PROVIDER'
+            : undefined,
+          verificationData: isProvider
+            ? {
+                fullName: email.trim().split('@')[0],
+                universityEmail: isStudentProvider ? email.trim() : null,
+              }
+            : undefined,
+        });
+      } catch (regError) {
+        // If account already exists (e.g. re-testing with same credentials), log in
+        if (
+          regError.message?.toLowerCase().includes('already exists') ||
+          regError.status === 409
+        ) {
+          await authService.login(email.trim(), password);
+        } else {
+          throw regError;
+        }
+      }
+
+      // 2. Navigate directly inside the app to marketplace
+      if (navigation?.replace) {
+        navigation.replace('marketplace');
+      } else if (navigation?.navigate) {
+        navigation.navigate('marketplace');
+      } else {
+        try {
+          router.replace('/marketplace');
+        } catch {
+          router.push('/marketplace');
+        }
+      }
+    } catch (error) {
+      setErrorMessage(error.message || 'Verification failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = () => {
+    setOtpCode('123456');
+    Alert.alert(
+      'Verification Code Resent',
+      `A new demo code (123456) was sent to ${email.trim() || 'your university email'}.`
+    );
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }]}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
@@ -311,7 +387,7 @@ export default function RegisterScreen({ navigation } = {}) {
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>
-          {step === 1 ? 'Create an account' : 'Provider Verification'}
+          {step === 1 ? 'Create an account' : step === 'otp' ? 'Check your inbox' : 'Provider Verification'}
         </Text>
 
         <View style={styles.headerRightPlaceholder} />
@@ -390,9 +466,33 @@ export default function RegisterScreen({ navigation } = {}) {
 
               {/* Form Fields */}
               <View style={styles.form}>
-                {/* Email address */}
+                {/* Provider Type Dropdown (At TOP for Provider, matching design) */}
+                {userType === 'provider' && (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Provider type</Text>
+                    <TouchableOpacity
+                      style={styles.dropdownSelector}
+                      onPress={() => setProviderDropdownOpen(true)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.dropdownSelectorText}>
+                        {providerType.toLowerCase().includes('student')
+                          ? 'Student provider'
+                          : 'External provider'}
+                      </Text>
+                      <Ionicons name="chevron-down" size={18} color="#0F172A" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* University email / Email address */}
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Email address</Text>
+                  <Text style={styles.label}>
+                    {userType === 'buyer' ||
+                    (userType === 'provider' && providerType.toLowerCase().includes('student'))
+                      ? 'University email'
+                      : 'Email address'}
+                  </Text>
                   <TextInput
                     style={[styles.input, focusedField === 'email' && styles.inputFocused]}
                     value={email}
@@ -400,7 +500,13 @@ export default function RegisterScreen({ navigation } = {}) {
                       setEmail(text);
                       if (errorMessage) setErrorMessage('');
                     }}
-                    placeholder=""
+                    placeholder={
+                      userType === 'buyer'
+                        ? 'e.g. 22cse0589@ms.sab.ac.lk'
+                        : providerType.toLowerCase().includes('student')
+                        ? 'amaya@student.demo.example'
+                        : 'nimal@provider.demo.example'
+                    }
                     placeholderTextColor="#94A3B8"
                     keyboardType="email-address"
                     autoCapitalize="none"
@@ -421,7 +527,13 @@ export default function RegisterScreen({ navigation } = {}) {
                       setContactNumber(text);
                       if (errorMessage) setErrorMessage('');
                     }}
-                    placeholder=""
+                    placeholder={
+                      userType === 'provider'
+                        ? providerType.toLowerCase().includes('student')
+                          ? '077 000 0001'
+                          : '077 000 0002'
+                        : '+94 77 123 4567'
+                    }
                     placeholderTextColor="#94A3B8"
                     keyboardType="phone-pad"
                     editable={!loading}
@@ -455,11 +567,7 @@ export default function RegisterScreen({ navigation } = {}) {
                       activeOpacity={0.7}
                       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     >
-                      <Ionicons
-                        name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                        size={20}
-                        color="#64748B"
-                      />
+                      <Text style={styles.showHideText}>{showPassword ? 'Hide' : 'Show'}</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -608,43 +716,42 @@ export default function RegisterScreen({ navigation } = {}) {
                       activeOpacity={0.7}
                       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     >
-                      <Ionicons
-                        name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
-                        size={20}
-                        color="#64748B"
-                      />
+                      <Text style={styles.showHideText}>{showConfirmPassword ? 'Hide' : 'Show'}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                {/* Provider Type Dropdown (Only for Provider) */}
+                {/* Provider Notice Box & Subtext (Matches Mockup) */}
                 {userType === 'provider' && (
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Provider type</Text>
-                    <TouchableOpacity
-                      style={styles.dropdownSelector}
-                      onPress={() => setProviderDropdownOpen(true)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.dropdownSelectorText}>{providerType}</Text>
-                      <Ionicons name="chevron-down" size={18} color="#0F172A" />
-                    </TouchableOpacity>
-                  </View>
+                  <>
+                    <View style={styles.providerNoticeBox}>
+                      <Text style={styles.providerNoticeText}>
+                        {providerType.toLowerCase().includes('student')
+                          ? 'Your university email is also your sign-in email. Student evidence is collected after registration.'
+                          : 'Your identity and provider details are collected after registration.'}
+                      </Text>
+                    </View>
+                    <Text style={styles.fictionalSubtext}>
+                      All visible values are fictional demo data. No account is actually created.
+                    </Text>
+                  </>
                 )}
 
-                {/* Terms and Privacy Policy Checkbox */}
-                <TouchableOpacity
-                  style={styles.checkboxContainer}
-                  onPress={() => setAgreeTerms(!agreeTerms)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.checkbox, agreeTerms && styles.checkboxActive]}>
-                    {agreeTerms && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-                  </View>
-                  <Text style={styles.checkboxLabel}>
-                    I agree to the account terms and privacy notice.
-                  </Text>
-                </TouchableOpacity>
+                {/* Terms and Privacy Policy Checkbox (Buyer only) */}
+                {userType === 'buyer' && (
+                  <TouchableOpacity
+                    style={styles.checkboxContainer}
+                    onPress={() => setAgreeTerms(!agreeTerms)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.checkbox, agreeTerms && styles.checkboxActive]}>
+                      {agreeTerms && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                    </View>
+                    <Text style={styles.checkboxLabel}>
+                      I agree to the account terms and privacy notice.
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
                 {/* Create Account Primary Button */}
                 <TouchableOpacity
@@ -656,26 +763,24 @@ export default function RegisterScreen({ navigation } = {}) {
                   {loading ? (
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
-                    <Text style={styles.primaryButtonText}>
-                      {userType === 'provider' ? 'Continue to Verification' : 'Create account'}
-                    </Text>
+                    <Text style={styles.primaryButtonText}>Create account →</Text>
                   )}
                 </TouchableOpacity>
 
-                {/* Bottom Informational Card */}
-                <View style={styles.infoCard}>
-                  <Ionicons
-                    name="information-circle-outline"
-                    size={22}
-                    color="#2563EB"
-                    style={{ marginTop: 1 }}
-                  />
-                  <Text style={styles.infoCardText}>
-                    {userType === 'provider'
-                      ? 'Verification is required before you can create listings.'
-                      : 'You can add your Student or External details later. They are only required when you request a rental.'}
-                  </Text>
-                </View>
+                {/* Bottom Informational Card (Buyer only) */}
+                {userType === 'buyer' && (
+                  <View style={styles.infoCard}>
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={22}
+                      color="#2563EB"
+                      style={{ marginTop: 1 }}
+                    />
+                    <Text style={styles.infoCardText}>
+                      You can add your Student or External details later. They are only required when you request a rental.
+                    </Text>
+                  </View>
+                )}
 
                 {/* Sign In Prompt */}
                 <View style={styles.signinPrompt}>
@@ -686,6 +791,105 @@ export default function RegisterScreen({ navigation } = {}) {
                 </View>
               </View>
             </>
+          )}
+
+          {/* STEP OTP: Email Verification ("Check your inbox") */}
+          {step === 'otp' && (
+            <View style={styles.otpContainer}>
+              {/* Top envelope icon */}
+              <View style={styles.otpMailIconCircle}>
+                <Ionicons name="mail-outline" size={28} color="#2563EB" />
+              </View>
+
+              {/* Title */}
+              <Text style={styles.otpTitle}>Check your inbox</Text>
+
+              {/* Subtitle with user's email */}
+              <Text style={styles.otpSubtitle}>
+                Confirm the email on your account:{' '}
+                <Text style={styles.otpEmailHighlight}>{email.trim() || 'yourname@campus.ac.lk'}</Text>.
+              </Text>
+
+              {/* Error Banner */}
+              {errorMessage ? (
+                <View style={styles.errorBanner}>
+                  <Ionicons name="alert-circle" size={18} color="#DC2626" style={{ marginRight: 8 }} />
+                  <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+              ) : null}
+
+              {/* Verification Code Input */}
+              <View style={styles.otpInputGroup}>
+                <Text style={styles.otpLabel}>Verification code</Text>
+                <TextInput
+                  style={[
+                    styles.otpInput,
+                    focusedField === 'otp' && styles.inputFocused,
+                  ]}
+                  value={otpCode}
+                  onChangeText={(text) => {
+                    setOtpCode(text);
+                    if (errorMessage) setErrorMessage('');
+                  }}
+                  placeholder="123456"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  editable={!loading}
+                  onFocus={() => setFocusedField('otp')}
+                  onBlur={() => setFocusedField(null)}
+                />
+              </View>
+
+              {/* Demo Notice Box */}
+              <View style={styles.otpNoticeBox}>
+                <Text style={styles.otpNoticeText}>
+                  The demo code is already filled:{' '}
+                  <Text style={{ fontWeight: '700', color: '#0F172A' }}>123456</Text>. No message is sent.
+                </Text>
+              </View>
+
+              {/* Confirm & Continue Primary Button */}
+              <TouchableOpacity
+                style={[styles.confirmButton, loading && styles.buttonDisabled]}
+                onPress={handleConfirmOtp}
+                activeOpacity={0.85}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.confirmButtonText}>Confirm & continue →</Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Back and Resend Code Row */}
+              <View style={styles.otpLinksRow}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setStep(1);
+                    setErrorMessage('');
+                  }}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.otpLinkText}>← Back</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleResendCode}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.otpLinkText}>Resend code</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Footnote */}
+              <Text style={styles.otpFootnote}>
+                Email confirmation proves inbox access. Student status or external identity is checked separately.
+              </Text>
+            </View>
           )}
 
           {/* STEP 2: Provider Verification Form */}
@@ -975,10 +1179,10 @@ export default function RegisterScreen({ navigation } = {}) {
             <TouchableOpacity
               style={[
                 styles.modalOption,
-                providerType === 'Student Provider' && styles.modalOptionActive,
+                providerType.toLowerCase().includes('student') && styles.modalOptionActive,
               ]}
               onPress={() => {
-                setProviderType('Student Provider');
+                setProviderType('Student provider');
                 setProviderDropdownOpen(false);
               }}
             >
@@ -986,12 +1190,12 @@ export default function RegisterScreen({ navigation } = {}) {
                 <Ionicons name="school" size={20} color="#2563EB" />
               </View>
               <View style={styles.modalOptionTextWrapper}>
-                <Text style={styles.modalOptionTitle}>Student Provider</Text>
+                <Text style={styles.modalOptionTitle}>Student provider</Text>
                 <Text style={styles.modalOptionDesc}>
                   Enrolled university student offering gear, peer tutoring, or campus rentals.
                 </Text>
               </View>
-              {providerType === 'Student Provider' && (
+              {providerType.toLowerCase().includes('student') && (
                 <Ionicons name="checkmark-circle" size={22} color="#2563EB" />
               )}
             </TouchableOpacity>
@@ -999,10 +1203,10 @@ export default function RegisterScreen({ navigation } = {}) {
             <TouchableOpacity
               style={[
                 styles.modalOption,
-                providerType === 'External Provider' && styles.modalOptionActive,
+                !providerType.toLowerCase().includes('student') && styles.modalOptionActive,
               ]}
               onPress={() => {
-                setProviderType('External Provider');
+                setProviderType('External provider');
                 setProviderDropdownOpen(false);
               }}
             >
@@ -1010,12 +1214,12 @@ export default function RegisterScreen({ navigation } = {}) {
                 <Ionicons name="business" size={20} color="#2563EB" />
               </View>
               <View style={styles.modalOptionTextWrapper}>
-                <Text style={styles.modalOptionTitle}>External Provider</Text>
+                <Text style={styles.modalOptionTitle}>External provider</Text>
                 <Text style={styles.modalOptionDesc}>
                   Commercial vendor, local business, or individual service provider.
                 </Text>
               </View>
-              {providerType === 'External Provider' && (
+              {!providerType.toLowerCase().includes('student') && (
                 <Ionicons name="checkmark-circle" size={22} color="#2563EB" />
               )}
             </TouchableOpacity>
@@ -1531,5 +1735,131 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
+  },
+  // OTP "Check your inbox" styles
+  otpContainer: {
+    paddingTop: 8,
+    width: '100%',
+  },
+  otpMailIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  otpTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.5,
+    marginBottom: 8,
+  },
+  otpSubtitle: {
+    fontSize: 14.5,
+    color: '#475569',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  otpEmailHighlight: {
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  otpInputGroup: {
+    marginBottom: 16,
+  },
+  otpLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 8,
+  },
+  otpInput: {
+    height: 52,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#0F172A',
+    fontWeight: '600',
+    letterSpacing: 2,
+  },
+  otpNoticeBox: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 24,
+  },
+  otpNoticeText: {
+    fontSize: 13.5,
+    color: '#475569',
+    lineHeight: 20,
+  },
+  confirmButton: {
+    backgroundColor: '#2563EB',
+    height: 50,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+    marginBottom: 20,
+  },
+  confirmButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  otpLinksRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
+  otpLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  otpFootnote: {
+    fontSize: 12.5,
+    color: '#64748B',
+    lineHeight: 18,
+  },
+  showHideText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  providerNoticeBox: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  providerNoticeText: {
+    fontSize: 13.5,
+    color: '#475569',
+    lineHeight: 20,
+  },
+  fictionalSubtext: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 16,
   },
 });

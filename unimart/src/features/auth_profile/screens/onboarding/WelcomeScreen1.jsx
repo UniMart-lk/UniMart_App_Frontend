@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,29 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import authService from '@/services/authService';
 
 const { width } = Dimensions.get('window');
 
 export default function WelcomeScreen1({ navigation, onNext } = {}) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      const isAuth = await authService.isAuthenticated();
+      if (isAuth) {
+        router.replace('/marketplace');
+        return;
+      }
+      const hasAccount = await authService.hasExistingAccount();
+      const done = await authService.isOnboardingCompleted();
+      if (hasAccount || done) {
+        router.replace('/login');
+      }
+    };
+    checkStatus();
+  }, []);
 
   const handleNext = () => {
     if (onNext) {

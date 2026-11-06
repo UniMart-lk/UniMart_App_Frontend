@@ -3,6 +3,8 @@ import { Platform } from 'react-native';
 
 const TOKEN_KEY = 'unimart_auth_token';
 const USER_KEY = 'unimart_user_data';
+const ONBOARDING_COMPLETED_KEY = 'unimart_onboarding_completed';
+const HAS_ACCOUNT_KEY = 'unimart_has_account';
 
 /**
  * Check if SecureStore is available on the current platform
@@ -119,4 +121,83 @@ export async function removeUser() {
 export async function clearAuth() {
   await removeToken();
   await removeUser();
+}
+
+/**
+ * Mark onboarding as completed (only show once)
+ */
+export async function setOnboardingCompleted() {
+  try {
+    if (isSecureStoreAvailable) {
+      await SecureStore.setItemAsync(ONBOARDING_COMPLETED_KEY, 'true');
+    } else {
+      localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+    }
+    return true;
+  } catch (error) {
+    console.error('Error setting onboarding status:', error);
+    return false;
+  }
+}
+
+/**
+ * Check if onboarding was already completed / seen
+ * @returns {Promise<boolean>}
+ */
+export async function isOnboardingCompleted() {
+  try {
+    const val = isSecureStoreAvailable
+      ? await SecureStore.getItemAsync(ONBOARDING_COMPLETED_KEY)
+      : localStorage.getItem(ONBOARDING_COMPLETED_KEY);
+    return val === 'true';
+  } catch (error) {
+    console.error('Error checking onboarding status:', error);
+    return false;
+  }
+}
+
+/**
+ * Mark that an account exists on this device
+ * @param {boolean} hasAccount
+ */
+export async function setHasAccount(hasAccount = true) {
+  try {
+    const val = hasAccount ? 'true' : 'false';
+    if (isSecureStoreAvailable) {
+      await SecureStore.setItemAsync(HAS_ACCOUNT_KEY, val);
+    } else {
+      localStorage.setItem(HAS_ACCOUNT_KEY, val);
+    }
+    return true;
+  } catch (error) {
+    console.error('Error setting hasAccount status:', error);
+    return false;
+  }
+}
+
+/**
+ * Check if user already has an account on this app
+ * @returns {Promise<boolean>}
+ */
+export async function hasExistingAccount() {
+  try {
+    // 1. Direct key check
+    const val = isSecureStoreAvailable
+      ? await SecureStore.getItemAsync(HAS_ACCOUNT_KEY)
+      : localStorage.getItem(HAS_ACCOUNT_KEY);
+    if (val === 'true') return true;
+
+    // 2. Check if a stored user exists
+    const user = await getUser();
+    if (user && (user.id || user.email)) return true;
+
+    // 3. Check if a token exists
+    const token = await getToken();
+    if (token) return true;
+
+    return false;
+  } catch (error) {
+    console.error('Error checking existing account:', error);
+    return false;
+  }
 }
