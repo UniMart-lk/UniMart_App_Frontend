@@ -187,6 +187,12 @@ export default function StudentDetailsScreen() {
     setSaving(true);
 
     try {
+      const detectedBadgeType = isExternalProvider
+        ? 'EXTERNAL_PROVIDER'
+        : isStudentProvider
+        ? 'STUDENT_PROVIDER'
+        : 'STUDENT';
+
       // Update profile locally and on backend
       await authService.updateProfile({
         fullName: fullName.trim(),
@@ -203,6 +209,7 @@ export default function StudentDetailsScreen() {
         profilePictureUrl: profilePhotoUrl,
         isProvider: !isStudentBuyer,
         providerType: isExternalProvider ? 'EXTERNAL_PROVIDER' : 'STUDENT_PROVIDER',
+        badgeType: detectedBadgeType,
       });
 
       setSaving(false);
@@ -850,7 +857,11 @@ export default function StudentDetailsScreen() {
               style={styles.successDoneBtn}
               onPress={() => {
                 setShowSuccessModal(false);
-                router.back();
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace('/profile');
+                }
               }}
               activeOpacity={0.85}
             >
