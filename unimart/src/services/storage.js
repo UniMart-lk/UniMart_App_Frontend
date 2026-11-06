@@ -5,6 +5,8 @@ const TOKEN_KEY = 'unimart_auth_token';
 const USER_KEY = 'unimart_user_data';
 const ONBOARDING_COMPLETED_KEY = 'unimart_onboarding_completed';
 const HAS_ACCOUNT_KEY = 'unimart_has_account';
+const PROFILE_COMPLETED_KEY = 'unimart_profile_completed';
+const USER_BADGE_TYPE_KEY = 'unimart_user_badge_type';
 
 /**
  * Check if SecureStore is available on the current platform
@@ -121,6 +123,72 @@ export async function removeUser() {
 export async function clearAuth() {
   await removeToken();
   await removeUser();
+  try {
+    if (isSecureStoreAvailable) {
+      await SecureStore.deleteItemAsync(PROFILE_COMPLETED_KEY);
+      await SecureStore.deleteItemAsync(USER_BADGE_TYPE_KEY);
+    } else {
+      localStorage.removeItem(PROFILE_COMPLETED_KEY);
+      localStorage.removeItem(USER_BADGE_TYPE_KEY);
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+/**
+ * Mark user profile as completed and record their badge type
+ * @param {boolean} completed
+ * @param {string|null} badgeType ('STUDENT', 'STUDENT_PROVIDER', or 'EXTERNAL_PROVIDER')
+ */
+export async function setProfileCompleted(completed = true, badgeType = null) {
+  try {
+    const val = completed ? 'true' : 'false';
+    if (isSecureStoreAvailable) {
+      await SecureStore.setItemAsync(PROFILE_COMPLETED_KEY, val);
+      if (badgeType) {
+        await SecureStore.setItemAsync(USER_BADGE_TYPE_KEY, badgeType);
+      }
+    } else {
+      localStorage.setItem(PROFILE_COMPLETED_KEY, val);
+      if (badgeType) {
+        localStorage.setItem(USER_BADGE_TYPE_KEY, badgeType);
+      }
+    }
+    return true;
+  } catch (error) {
+    console.error('Error saving profile completion state:', error);
+    return false;
+  }
+}
+
+/**
+ * Check if profile completion is verified
+ * @returns {Promise<boolean>}
+ */
+export async function isProfileCompletedStorage() {
+  try {
+    const val = isSecureStoreAvailable
+      ? await SecureStore.getItemAsync(PROFILE_COMPLETED_KEY)
+      : localStorage.getItem(PROFILE_COMPLETED_KEY);
+    return val === 'true';
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Get stored user badge type
+ * @returns {Promise<string|null>}
+ */
+export async function getStoredBadgeType() {
+  try {
+    return isSecureStoreAvailable
+      ? await SecureStore.getItemAsync(USER_BADGE_TYPE_KEY)
+      : localStorage.getItem(USER_BADGE_TYPE_KEY);
+  } catch (error) {
+    return null;
+  }
 }
 
 /**
