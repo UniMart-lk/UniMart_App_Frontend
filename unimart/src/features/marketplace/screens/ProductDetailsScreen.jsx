@@ -136,11 +136,11 @@ export default function ProductDetailsScreen() {
   };
 
   // Similar products sorted to display Mountain Bike first, Calculus Textbook second, Study Table third
-  const similarProducts = products
-    .filter((p) => p.id !== product.id)
+  const similarProducts = fallbackProducts
+    .filter((p) => String(p.id) !== String(product.id))
     .sort((a, b) => {
       const order = { '4': 1, '1': 2, '3': 3 };
-      return (order[a.id] || 99) - (order[b.id] || 99);
+      return (order[String(a.id)] || 99) - (order[String(b.id)] || 99);
     });
 
   return (
