@@ -98,38 +98,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const displayEmail = user?.email || '22cse0373@ms.sab.ac.lk';
-  const displayPhone =
-    user?.contactNumber ||
-    user?.userProfile?.contactNumber ||
-    '+94 77 123 4567';
-
-  // Automatically parse email to derive registration number (e.g. 22CSE0373)
-  const parsedUni = parseUniversityEmail(displayEmail);
-  const regNumber = parsedUni.regNumber;
-
-  // Real full name check: must be entered and not equal to registration number
-  const rawFullName = user?.userProfile?.fullName?.trim();
-  const hasRealFullName = Boolean(
-    rawFullName &&
-    rawFullName.toUpperCase() !== regNumber.toUpperCase() &&
-    rawFullName.toLowerCase() !== displayEmail.split('@')[0].toLowerCase()
-  );
-
-  // Student ID document check: verify if student uploaded student ID
-  const studentIdDoc = user?.userProfile?.studentEvidenceUrl || user?.providerProfile?.verificationDocUrl;
-  const hasUploadedStudentId = Boolean(studentIdDoc && studentIdDoc.trim());
-
-  // Default shows registration number until student adds real full name
-  const displayName = hasRealFullName ? rawFullName : regNumber;
-
-  // Profile completion status: ONLY completed after full name is added AND student ID is uploaded
-  const isProfileCompleted = Boolean(
-    hasRealFullName &&
-    hasUploadedStudentId &&
-    (user?.userProfile?.isCompleted || profileCompletedLocal)
-  );
-
   // User Type: STUDENT, STUDENT_PROVIDER, or EXTERNAL_PROVIDER
   const isProvider =
     storedBadge === 'EXTERNAL_PROVIDER' ||
@@ -149,6 +117,40 @@ export default function ProfileScreen() {
       ? 'EXTERNAL_PROVIDER'
       : 'STUDENT_PROVIDER'
     : 'STUDENT';
+
+  const displayEmail = user?.email || (isProvider ? 'amaya@student.demo.example' : '22cse0373@ms.sab.ac.lk');
+  const displayPhone =
+    user?.contactNumber ||
+    user?.userProfile?.contactNumber ||
+    (isProvider ? '+94 77 123 4567' : '+94 77 123 4567');
+
+  // Automatically parse email to derive registration number (e.g. 22CSE0373)
+  const parsedUni = parseUniversityEmail(displayEmail);
+  const regNumber = parsedUni.regNumber;
+
+  // Real full name check: must be entered and not equal to registration number
+  const rawFullName = user?.userProfile?.fullName?.trim();
+  const hasRealFullName = Boolean(
+    rawFullName &&
+    rawFullName.toUpperCase() !== regNumber.toUpperCase() &&
+    rawFullName.toLowerCase() !== displayEmail.split('@')[0].toLowerCase()
+  );
+
+  // Student ID document check: verify if student uploaded student ID
+  const studentIdDoc = user?.userProfile?.studentEvidenceUrl || user?.providerProfile?.verificationDocUrl;
+  const hasUploadedStudentId = Boolean(studentIdDoc && studentIdDoc.trim());
+
+  // Default shows registration number until student adds real full name
+  const displayName = hasRealFullName
+    ? rawFullName
+    : (isProvider ? (user?.userProfile?.fullName || 'Tharindu Asma') : regNumber);
+
+  // Profile completion status: ONLY completed after full name is added AND student ID is uploaded
+  const isProfileCompleted = Boolean(
+    hasRealFullName &&
+    hasUploadedStudentId &&
+    (user?.userProfile?.isCompleted || profileCompletedLocal)
+  );
 
   const listingsCount = user?.providerProfile?.totalListings || 0;
   const rentalsCount = 3;
@@ -185,13 +187,13 @@ export default function ProfileScreen() {
               style={styles.avatarImage}
               resizeMode="cover"
             />
-            {/* Circular badge on avatar: only shown for providers */}
+            {/* Circular badge on avatar: only shown for providers once profile is completed */}
             {isProvider && isProfileCompleted && (
               <View
                 style={[
                   styles.avatarBadgeCircle,
                   userType === 'EXTERNAL_PROVIDER' && { backgroundColor: '#0D9488' },
-                  userType === 'STUDENT_PROVIDER' && { backgroundColor: '#6366F1' },
+                  userType === 'STUDENT_PROVIDER' && { backgroundColor: '#8B5CF6' },
                 ]}
               >
                 <Ionicons
@@ -216,9 +218,9 @@ export default function ProfileScreen() {
               {isProvider ? (
                 <>
                   {userType === 'STUDENT_PROVIDER' && (
-                    <View style={styles.studentProviderPill}>
-                      <Ionicons name="school" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
-                      <Text style={styles.badgePillText}>Student Provider</Text>
+                    <View style={styles.studentPill}>
+                      <Ionicons name="school" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.badgePillText}>Student</Text>
                     </View>
                   )}
                   {userType === 'EXTERNAL_PROVIDER' && (
@@ -235,7 +237,7 @@ export default function ProfileScreen() {
               ) : (
                 /* Student Buyer: Single Verified green pill matching screenshot */
                 <View style={styles.studentBuyerVerifiedPill}>
-                  <Ionicons name="checkmark-circle" size={14} color="#064E3B" style={{ marginRight: 5 }} />
+                  <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
                   <Text style={styles.studentBuyerVerifiedText}>Verified</Text>
                 </View>
               )}
@@ -248,7 +250,7 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* 3. STATS SUMMARY CARD: Only rendered for Providers (omitted for Student Buyer) */}
+        {/* 3. STATS SUMMARY CARD: Rendered for Providers (Listings, Rentals, Rating) */}
         {isProvider && (
           <View style={styles.statsCard}>
             <View style={styles.statCol}>
@@ -321,7 +323,7 @@ export default function ProfileScreen() {
 
           <View style={styles.menuDivider} />
 
-          {/* Row 2: My Requests */}
+          {/* Row 2: My Bookings (Provider) or My Requests (Buyer) */}
           <TouchableOpacity
             style={styles.menuRow}
             onPress={() => router.push('/myBookings')}
@@ -330,35 +332,40 @@ export default function ProfileScreen() {
             <View style={styles.menuIconBox}>
               <Ionicons name="calendar" size={20} color="#475569" />
             </View>
-            <Text style={styles.menuRowTitle}>My Requests</Text>
-            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-          </TouchableOpacity>
-
-          <View style={styles.menuDivider} />
-
-          {/* Row 3: Verification Status */}
-          <TouchableOpacity
-            style={styles.menuRow}
-            onPress={() => {
-              if (!isProfileCompleted) {
-                router.push('/editProfile');
-              } else {
-                Alert.alert('Verification Status', 'Your account is verified.');
-              }
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={styles.menuIconBox}>
-              <Ionicons name="shield-checkmark" size={20} color="#475569" />
-            </View>
-            <Text style={styles.menuRowTitle}>Verification Status</Text>
-            <Text style={styles.verificationStatusValue}>
-              {isProfileCompleted ? 'Verified' : 'Not verified'}
+            <Text style={styles.menuRowTitle}>
+              {isProvider ? 'My Bookings' : 'My Requests'}
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
           </TouchableOpacity>
 
           <View style={styles.menuDivider} />
+
+          {/* Row 3: Verification Status (Shown for Student Buyer) */}
+          {!isProvider && (
+            <>
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => {
+                  if (!isProfileCompleted) {
+                    router.push('/editProfile');
+                  } else {
+                    Alert.alert('Verification Status', 'Your account is verified.');
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.menuIconBox}>
+                  <Ionicons name="shield-checkmark" size={20} color="#475569" />
+                </View>
+                <Text style={styles.menuRowTitle}>Verification Status</Text>
+                <Text style={styles.verificationStatusValue}>
+                  {isProfileCompleted ? 'Verified' : 'Not verified'}
+                </Text>
+                <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+            </>
+          )}
 
           {/* Row 4: Messages */}
           <TouchableOpacity
@@ -606,16 +613,24 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
   },
+  studentPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
   studentBuyerVerifiedPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#00B074',
+    backgroundColor: '#059669',
     paddingHorizontal: 16,
     paddingVertical: 5.5,
     borderRadius: 20,
   },
   studentBuyerVerifiedText: {
-    color: '#064E3B',
+    color: '#FFFFFF',
     fontSize: 12.5,
     fontWeight: '700',
   },
