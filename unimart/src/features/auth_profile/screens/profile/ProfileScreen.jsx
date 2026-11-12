@@ -193,8 +193,8 @@ export default function ProfileScreen() {
           <Text style={styles.userEmailText}>{displayEmail}</Text>
           <Text style={styles.userPhoneText}>{displayPhone}</Text>
 
-          {/* Role & Verification Badges: ONLY displayed if profile is completed */}
-          {isProfileCompleted && (
+          {/* Role & Verification Badges: If completed show Role + Verified, if not completed show Not verified */}
+          {isProfileCompleted ? (
             <View style={styles.badgesRow}>
               {/* 1. Student Badge (Purple Pill) */}
               {userType === 'STUDENT' && (
@@ -225,6 +225,11 @@ export default function ProfileScreen() {
                 <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
                 <Text style={styles.badgePillText}>Verified</Text>
               </View>
+            </View>
+          ) : (
+            <View style={styles.notVerifiedPill}>
+              <Ionicons name="shield" size={13} color="#475569" style={{ marginRight: 6 }} />
+              <Text style={styles.notVerifiedText}>Not verified</Text>
             </View>
           )}
         </View>
@@ -600,6 +605,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12.5,
     fontWeight: '700',
+  },
+  notVerifiedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#94A3B8',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 20,
+    alignSelf: 'center',
+  },
+  notVerifiedText: {
+    color: '#475569',
+    fontSize: 12.5,
+    fontWeight: '600',
   },
   // Incomplete Banner
   incompleteBannerCard: {
