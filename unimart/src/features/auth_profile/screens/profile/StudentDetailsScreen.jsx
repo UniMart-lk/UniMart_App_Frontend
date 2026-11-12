@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,197 +19,315 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import authService from '@/services/authService';
 
-const SRI_LANKAN_UNIVERSITIES = [
-  'Sabaragamuwa University of Sri Lanka',
-  'University of Colombo',
-  'University of Peradeniya',
-  'University of Moratuwa',
-  'University of Sri Jayewardenepura',
-  'University of Kelaniya',
-  'University of Ruhuna',
-  'Rajarata University of Sri Lanka',
-  'Wayamba University of Sri Lanka',
-  'South Eastern University of Sri Lanka',
-  'Eastern University, Sri Lanka',
-  'Uva Wellassa University',
-  'University of Jaffna',
-];
+// All 8 Sabaragamuwa University Faculties and their Departments
+export const UNIVERSITY_FACULTIES = {
+  'Faculty of Agricultural Sciences': [
+    'Agribusiness Management',
+    'Export Agriculture',
+    'Livestock Production',
+  ],
+  'Faculty of Applied Sciences': [
+    'Food Science and Technology',
+    'Natural Resources',
+    'Physical Sciences and Technology',
+    'Sport Sciences and Physical Education',
+  ],
+  'Faculty of Computing': [
+    'Computing and Information Systems',
+    'Data Science',
+    'Software Engineering',
+  ],
+  'Faculty of Management Studies': [
+    'Accountancy and Finance',
+    'Business Management',
+    'Marketing Management',
+    'Tourism Management',
+  ],
+  'Faculty of Geomatics': [
+    'Surveying and Geodesy',
+    'Remote Sensing and GIS',
+  ],
+  'Faculty of Social Sciences and Languages': [
+    'Economics and Statistics',
+    'English Language Teaching',
+    'Geography and Environmental Management',
+    'Languages',
+    'Social Sciences',
+    'Information Technology',
+  ],
+  'Faculty of Technology': [
+    'Biosystems Technology',
+    'Engineering Technology',
+  ],
+  'Faculty of Medicine': [
+    'Anatomy',
+    'Biochemistry',
+    'Community Medicine',
+    'Forensic Medicine and Toxicology',
+    'Medicine',
+    'Microbiology',
+    'Obstetrics and Gynaecology',
+    'Paediatrics',
+    'Parasitology',
+    'Pathology',
+    'Pharmacology',
+    'Physiology',
+    'Primary Care and Family Medicine',
+    'Psychiatry',
+    'Surgery',
+  ],
+};
 
-const FACULTIES = [
-  'Faculty of Computing',
-  'Faculty of Applied Sciences',
-  'Faculty of Technology',
-  'Faculty of Management Studies',
-  'Faculty of Social Sciences & Languages',
-  'Faculty of Agricultural Sciences',
-  'Faculty of Geomatics',
-  'Faculty of Medicine',
-  'Faculty of Engineering',
-  'Faculty of Science',
-  'Faculty of Arts',
-];
+/**
+ * Automatically parses university email to extract:
+ * Intake / batch code (e.g., 22 -> 2022/2023, displayed as 22/23)
+ * Faculty (e.g., c -> Faculty of Computing)
+ * Programme / Department (e.g., se -> Software Engineering)
+ * Student numeric identifier (e.g., 0373)
+ * Registration number (e.g., 22CSE0373)
+ * Domain match (ms.sab.ac.lk -> Sabaragamuwa University of Sri Lanka)
+ */
+export function parseUniversityEmail(email) {
+  if (!email || typeof email !== 'string') {
+    return {
+      university: 'Sabaragamuwa University of Sri Lanka',
+      faculty: 'Faculty of Computing',
+      department: 'Software Engineering',
+      intakeBatch: '22/23',
+      intakeFull: '2022/2023',
+      studentId: '0373',
+      regNumber: '22CSE0373',
+      domain: 'ms.sab.ac.lk',
+      isMatched: false,
+    };
+  }
+
+  const clean = email.toLowerCase().trim();
+  const [localPart, domainPart] = clean.split('@');
+
+  // Regex pattern: 2 digits intake + letters for faculty & dept + 3 to 5 digits student ID
+  // e.g. "22cse0373" => ["22cse0373", "22", "cse", "0373"]
+  const regex = /^([0-9]{2})([a-z]+?)([0-9]{3,5})$/;
+  const match = (localPart || '').match(regex);
+
+  if (match) {
+    const intakeCode = match[1]; // "22"
+    const codePart = match[2]; // "cse"
+    const studentId = match[3]; // "0373"
+
+    const startYear = 2000 + parseInt(intakeCode, 10);
+    const endYear = startYear + 1;
+    const intakeBatch = `${intakeCode}/${String(endYear).slice(-2)}`; // "22/23"
+    const intakeFull = `${startYear}/${endYear}`; // "2022/2023"
+
+    let faculty = 'Faculty of Computing';
+    let department = 'Software Engineering';
+
+    // Faculty 1: Computing ('c')
+    if (codePart.startsWith('c')) {
+      faculty = 'Faculty of Computing';
+      if (codePart.includes('se')) {
+        department = 'Software Engineering';
+      } else if (codePart.includes('ds')) {
+        department = 'Data Science';
+      } else {
+        department = 'Computing and Information Systems';
+      }
+    }
+    // Faculty 2: Agricultural Sciences ('ag' or 'a')
+    else if (codePart.startsWith('ag') || codePart.startsWith('a')) {
+      faculty = 'Faculty of Agricultural Sciences';
+      if (codePart.includes('abm') || codePart.includes('ab')) {
+        department = 'Agribusiness Management';
+      } else if (codePart.includes('lp')) {
+        department = 'Livestock Production';
+      } else {
+        department = 'Export Agriculture';
+      }
+    }
+    // Faculty 3: Applied Sciences ('ap', 'app', 's')
+    else if (codePart.startsWith('ap') || codePart.startsWith('app') || codePart.startsWith('s')) {
+      faculty = 'Faculty of Applied Sciences';
+      if (codePart.includes('fst')) {
+        department = 'Food Science and Technology';
+      } else if (codePart.includes('nr')) {
+        department = 'Natural Resources';
+      } else if (codePart.includes('spe') || codePart.includes('pe')) {
+        department = 'Sport Sciences and Physical Education';
+      } else {
+        department = 'Physical Sciences and Technology';
+      }
+    }
+    // Faculty 4: Management Studies ('m', 'ms')
+    else if (codePart.startsWith('m') || codePart.startsWith('ms')) {
+      faculty = 'Faculty of Management Studies';
+      if (codePart.includes('af') || codePart.includes('acc')) {
+        department = 'Accountancy and Finance';
+      } else if (codePart.includes('mm') || codePart.includes('mkt')) {
+        department = 'Marketing Management';
+      } else if (codePart.includes('tm') || codePart.includes('tour')) {
+        department = 'Tourism Management';
+      } else {
+        department = 'Business Management';
+      }
+    }
+    // Faculty 5: Geomatics ('geo', 'g')
+    else if (codePart.startsWith('geo') || codePart.startsWith('g')) {
+      faculty = 'Faculty of Geomatics';
+      if (codePart.includes('rs') || codePart.includes('gis')) {
+        department = 'Remote Sensing and GIS';
+      } else {
+        department = 'Surveying and Geodesy';
+      }
+    }
+    // Faculty 6: Social Sciences and Languages ('ssl', 'ss', 'sl')
+    else if (codePart.startsWith('ssl') || codePart.startsWith('ss') || codePart.startsWith('sl')) {
+      faculty = 'Faculty of Social Sciences and Languages';
+      if (codePart.includes('es')) {
+        department = 'Economics and Statistics';
+      } else if (codePart.includes('elt')) {
+        department = 'English Language Teaching';
+      } else if (codePart.includes('geo') || codePart.includes('env')) {
+        department = 'Geography and Environmental Management';
+      } else if (codePart.includes('lang')) {
+        department = 'Languages';
+      } else if (codePart.includes('it')) {
+        department = 'Information Technology';
+      } else {
+        department = 'Social Sciences';
+      }
+    }
+    // Faculty 7: Technology ('t', 'tech')
+    else if (codePart.startsWith('t') || codePart.startsWith('tech')) {
+      faculty = 'Faculty of Technology';
+      if (codePart.includes('bst') || codePart.includes('bio')) {
+        department = 'Biosystems Technology';
+      } else {
+        department = 'Engineering Technology';
+      }
+    }
+    // Faculty 8: Medicine ('med', 'md')
+    else if (codePart.startsWith('med') || codePart.startsWith('md')) {
+      faculty = 'Faculty of Medicine';
+      department = 'Medicine';
+    }
+
+    const regNumber = `${intakeCode}${codePart.toUpperCase()}${studentId}`;
+
+    return {
+      university: 'Sabaragamuwa University of Sri Lanka',
+      faculty,
+      department,
+      intakeBatch,
+      intakeFull,
+      studentId,
+      regNumber,
+      domain: domainPart || 'ms.sab.ac.lk',
+      isMatched: true,
+    };
+  }
+
+  // Default table example from requirements
+  return {
+    university: 'Sabaragamuwa University of Sri Lanka',
+    faculty: 'Faculty of Computing',
+    department: 'Software Engineering',
+    intakeBatch: '22/23',
+    intakeFull: '2022/2023',
+    studentId: '0373',
+    regNumber: '22CSE0373',
+    domain: domainPart || 'ms.sab.ac.lk',
+    isMatched: false,
+  };
+}
 
 export default function StudentDetailsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  // User type mode: 'STUDENT_BUYER', 'STUDENT_PROVIDER', or 'EXTERNAL_PROVIDER'
-  const [activeUserType, setActiveUserType] = useState('STUDENT_BUYER');
-
-  // Banner visibility state
-  const [showBanner, setShowBanner] = useState(true);
-
-  // Registered credentials (read-only, reused without asking again)
-  const [registeredEmail, setRegisteredEmail] = useState('22cse0589@ms.sab.ac.lk');
-  const [registeredContact, setRegisteredContact] = useState('+94 77 123 4567');
-
-  // Form Fields
+  // User credentials & identity
   const [fullName, setFullName] = useState('Tharindu Asma');
-  const [dob, setDob] = useState('2001-05-12');
+  const [email, setEmail] = useState('22cse0373@ms.sab.ac.lk');
+  const [contactNumber, setContactNumber] = useState('+94 77 123 4567');
+  const [profileType, setProfileType] = useState('Student buyer');
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
 
-  // Student specific fields
-  const [university, setUniversity] = useState('Sabaragamuwa University of Sri Lanka');
-  const [studentRegNumber, setStudentRegNumber] = useState('22/COM/0589');
+  // Student Evidence File
   const [studentEvidenceFile, setStudentEvidenceFile] = useState('Student_ID_Proof.pdf');
-  const [faculty, setFaculty] = useState('Faculty of Computing');
 
-  // External Provider specific fields
-  const [nicNumber, setNicNumber] = useState('200113304567');
-  const [identityEvidenceFile, setIdentityEvidenceFile] = useState('NIC_Front_Back_Proof.pdf');
+  // Accordion state: Collapsed by default as in screenshot
+  const [isAccordionOpen, setIsAccordionOpen] = useState(false);
 
-  // Provider common fields (Student Provider & External Provider)
-  const [providerDisplayName, setProviderDisplayName] = useState('Tharindu Campus Services');
-  const [serviceArea, setServiceArea] = useState('Sabaragamuwa University Main Campus');
-  const [providerDescription, setProviderDescription] = useState('Providing electronics, textbooks, and campus mobility rentals.');
-  const [businessName, setBusinessName] = useState('');
-
-  // Input focus tracking
-  const [focusedField, setFocusedField] = useState(null);
-
-  // Selection Modals
-  const [showUniModal, setShowUniModal] = useState(false);
-  const [showFacultyModal, setShowFacultyModal] = useState(false);
+  // Loading & Modal states
   const [saving, setSaving] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
-    loadExistingUserData();
+    loadUserData();
   }, []);
 
-  const loadExistingUserData = async () => {
+  const loadUserData = async () => {
     try {
       const stored = await authService.getStoredUser();
       if (stored) {
-        // Reused credentials
-        if (stored.email) setRegisteredEmail(stored.email);
-        if (stored.contactNumber) setRegisteredContact(stored.contactNumber);
+        if (stored.email) setEmail(stored.email);
+        if (stored.contactNumber) setContactNumber(stored.contactNumber);
 
-        // Detect user type
+        if (stored.userProfile?.fullName) setFullName(stored.userProfile.fullName);
+        if (stored.userProfile?.contactNumber) setContactNumber(stored.userProfile.contactNumber);
+        if (stored.userProfile?.profilePictureUrl) setProfilePhotoUrl(stored.userProfile.profilePictureUrl);
+
         const isProv = stored.role === 'PROVIDER' || Boolean(stored.providerProfile);
         const isExt =
           stored.providerProfile?.providerType === 'EXTERNAL_PROVIDER' ||
           stored.userProfile?.userType === 'EXTERNAL';
 
         if (isProv) {
-          setActiveUserType(isExt ? 'EXTERNAL_PROVIDER' : 'STUDENT_PROVIDER');
+          setProfileType(isExt ? 'External provider' : 'Student provider');
         } else {
-          setActiveUserType('STUDENT_BUYER');
+          setProfileType('Student buyer');
         }
-
-        // Pre-fill profile info if exists
-        if (stored.userProfile?.fullName) setFullName(stored.userProfile.fullName);
-        if (stored.userProfile?.university) setUniversity(stored.userProfile.university);
-        if (stored.userProfile?.faculty) setFaculty(stored.userProfile.faculty);
-        if (stored.userProfile?.universityIdNumber) setStudentRegNumber(stored.userProfile.universityIdNumber);
-        if (stored.userProfile?.nicNumber) setNicNumber(stored.userProfile.nicNumber);
-        if (stored.userProfile?.profilePictureUrl) setProfilePhotoUrl(stored.userProfile.profilePictureUrl);
-
-        if (stored.providerProfile?.displayName) setProviderDisplayName(stored.providerProfile.displayName);
-        if (stored.providerProfile?.description) setProviderDescription(stored.providerProfile.description);
       }
     } catch {
       // Keep sensible initial defaults
     }
   };
 
-  const isStudentBuyer = activeUserType === 'STUDENT_BUYER';
-  const isStudentProvider = activeUserType === 'STUDENT_PROVIDER';
-  const isExternalProvider = activeUserType === 'EXTERNAL_PROVIDER';
+  // Automatically computed university details based on the email
+  const parsedUni = useMemo(() => {
+    return parseUniversityEmail(email);
+  }, [email]);
 
   const handleSave = async () => {
-    // 1. Validate Full Name (Required for all 3)
     if (!fullName.trim()) {
       Alert.alert('Required', 'Please enter your full name.');
       return;
     }
 
-    // 2. Validate Student fields (Required for Student buyer & Student provider)
-    if (isStudentBuyer || isStudentProvider) {
-      if (!university.trim()) {
-        Alert.alert('Required', 'Please select your university.');
-        return;
-      }
-      if (!studentRegNumber.trim()) {
-        Alert.alert('Required', 'Please enter your student registration number.');
-        return;
-      }
-      if (!studentEvidenceFile) {
-        Alert.alert('Required', 'Please attach your student ID or enrolment evidence.');
-        return;
-      }
+    if (!contactNumber.trim()) {
+      Alert.alert('Required', 'Please enter your contact number.');
+      return;
     }
 
-    // 3. Validate External Provider fields
-    if (isExternalProvider) {
-      if (!nicNumber.trim()) {
-        Alert.alert('Required', 'Please enter your NIC number.');
-        return;
-      }
-      if (!identityEvidenceFile) {
-        Alert.alert('Required', 'Please attach your identity evidence (NIC/Passport).');
-        return;
-      }
-    }
-
-    // 4. Validate Provider fields (Student provider & External provider)
-    if (isStudentProvider || isExternalProvider) {
-      if (!providerDisplayName.trim()) {
-        Alert.alert('Required', 'Please enter your provider display name.');
-        return;
-      }
-      if (!serviceArea.trim()) {
-        Alert.alert('Required', 'Please specify your service or pickup area.');
-        return;
-      }
+    if (!studentEvidenceFile) {
+      Alert.alert('Required', 'Please attach your student ID or enrolment evidence.');
+      return;
     }
 
     setSaving(true);
 
     try {
-      const detectedBadgeType = isExternalProvider
-        ? 'EXTERNAL_PROVIDER'
-        : isStudentProvider
-        ? 'STUDENT_PROVIDER'
-        : 'STUDENT';
-
-      // Update profile locally and on backend
       await authService.updateProfile({
         fullName: fullName.trim(),
-        university: !isExternalProvider ? university.trim() : null,
-        faculty: !isExternalProvider && faculty ? faculty.trim() : null,
-        studentRegistrationNumber: !isExternalProvider ? studentRegNumber.trim() : null,
-        studentEvidenceUrl: !isExternalProvider ? studentEvidenceFile : null,
-        nicNumber: isExternalProvider ? nicNumber.trim() : null,
-        identityEvidenceUrl: isExternalProvider ? identityEvidenceFile : null,
-        providerDisplayName: !isStudentBuyer ? providerDisplayName.trim() : null,
-        serviceArea: !isStudentBuyer ? serviceArea.trim() : null,
-        description: !isStudentBuyer ? providerDescription.trim() : null,
-        businessName: !isStudentBuyer && businessName ? businessName.trim() : null,
+        contactNumber: contactNumber.trim(),
+        university: parsedUni.university,
+        faculty: parsedUni.faculty,
+        department: parsedUni.department,
+        intakeBatch: parsedUni.intakeBatch,
+        studentRegistrationNumber: parsedUni.regNumber,
+        studentEvidenceUrl: studentEvidenceFile,
         profilePictureUrl: profilePhotoUrl,
-        isProvider: !isStudentBuyer,
-        providerType: isExternalProvider ? 'EXTERNAL_PROVIDER' : 'STUDENT_PROVIDER',
-        badgeType: detectedBadgeType,
+        isCompleted: true,
       });
 
       setSaving(false);
@@ -231,18 +349,24 @@ export default function StudentDetailsScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
           accessibilityLabel="Go Back"
-          accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {isStudentBuyer
-            ? 'Student Details'
-            : isStudentProvider
-            ? 'Student Provider Details'
-            : 'External Provider Details'}
-        </Text>
-        <View style={styles.headerPlaceholder} />
+
+        <Text style={styles.headerTitle}>Edit Profile</Text>
+
+        <TouchableOpacity
+          style={styles.saveHeaderBtn}
+          onPress={handleSave}
+          disabled={saving}
+          activeOpacity={0.7}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#2563EB" />
+          ) : (
+            <Text style={styles.saveHeaderBtnText}>Save</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
@@ -251,624 +375,289 @@ export default function StudentDetailsScreen() {
       >
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: Math.max(insets.bottom, 24) + 24 },
-          ]}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
         >
-          {/* 2. BLUE INFO BANNER */}
-          {showBanner && (
-            <View style={styles.infoBanner}>
-              <View style={styles.infoIconWrapper}>
-                <Ionicons name="information-circle" size={22} color="#2563EB" />
-              </View>
-
-              <Text style={styles.infoBannerText}>
-                {isStudentBuyer
-                  ? 'Complete these details to enable rental and purchase requests.'
-                  : 'Complete these details to enable selling and renting items.'}
-              </Text>
-
+          {/* 2. PROFILE PHOTO SECTION */}
+          <View style={styles.avatarSection}>
+            <View style={styles.avatarWrapper}>
+              <Image
+                source={
+                  profilePhotoUrl
+                    ? { uri: profilePhotoUrl }
+                    : require('../../../../../assets/images/student_avatar.jpg')
+                }
+                style={styles.avatarImage}
+                resizeMode="cover"
+              />
               <TouchableOpacity
-                style={styles.closeBannerBtn}
-                onPress={() => setShowBanner(false)}
-                activeOpacity={0.7}
-                accessibilityLabel="Close notice"
+                style={styles.cameraIconBadge}
+                activeOpacity={0.8}
+                onPress={() =>
+                  Alert.alert('Change Photo', 'Select a new photo for your profile.', [
+                    {
+                      text: 'Take Photo',
+                      onPress: () => Alert.alert('Camera', 'Photo captured.'),
+                    },
+                    {
+                      text: 'Choose from Gallery',
+                      onPress: () => Alert.alert('Gallery', 'Photo selected.'),
+                    },
+                    { text: 'Cancel', style: 'cancel' },
+                  ])
+                }
               >
-                <Ionicons name="close" size={18} color="#64748B" />
+                <Ionicons name="camera" size={15} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
-          )}
 
-          {/* 3. ROLE BADGE PILL */}
-          <View style={styles.badgeWrapper}>
-            {isStudentBuyer && (
-              <View style={styles.studentBadge}>
-                <Ionicons name="school" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.studentBadgeText}>Student</Text>
-              </View>
-            )}
-
-            {isStudentProvider && (
-              <View style={styles.studentProviderBadge}>
-                <Ionicons name="school" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
-                <Text style={styles.studentBadgeText}>Student Provider</Text>
-              </View>
-            )}
-
-            {isExternalProvider && (
-              <View style={styles.externalProviderBadge}>
-                <Ionicons name="business" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.studentBadgeText}>External Provider</Text>
-              </View>
-            )}
-          </View>
-
-          {/* 4. REUSED REGISTERED CREDENTIALS (READ-ONLY) */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeaderRow}>
-              <Ionicons name="shield-checkmark" size={16} color="#059669" style={{ marginRight: 6 }} />
-              <Text style={styles.sectionHeading}>Registered Account Information</Text>
-            </View>
-            <Text style={styles.sectionSubtext}>
-              Reused from your registered account. You do not need to enter them again.
-            </Text>
-
-            {/* Reused Email */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>
-                {isExternalProvider ? 'Email Address' : 'University Email'}
-              </Text>
-              <View style={[styles.inputBox, styles.inputBoxReadOnly]}>
-                <Ionicons name="mail" size={18} color="#64748B" style={styles.inputLeadingIcon} />
-                <Text style={styles.readOnlyText} numberOfLines={1}>
-                  {registeredEmail}
-                </Text>
-                <View style={styles.verifiedTag}>
-                  <Ionicons name="lock-closed" size={11} color="#059669" style={{ marginRight: 3 }} />
-                  <Text style={styles.verifiedTagText}>Registered</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Reused Contact Number */}
-            <View style={[styles.fieldGroup, { marginBottom: 0 }]}>
-              <Text style={styles.fieldLabel}>Contact Number</Text>
-              <View style={[styles.inputBox, styles.inputBoxReadOnly]}>
-                <Ionicons name="call" size={18} color="#64748B" style={styles.inputLeadingIcon} />
-                <Text style={styles.readOnlyText} numberOfLines={1}>
-                  {registeredContact}
-                </Text>
-                <View style={styles.verifiedTag}>
-                  <Ionicons name="lock-closed" size={11} color="#059669" style={{ marginRight: 3 }} />
-                  <Text style={styles.verifiedTagText}>Registered</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* 5. PROFILE PHOTO (OPTIONAL FOR ALL) */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionHeading}>Profile Photo (Optional)</Text>
-            <View style={styles.photoRow}>
-              <View style={styles.photoAvatarWrapper}>
-                <Image
-                  source={require('../../../../../assets/images/student_avatar.jpg')}
-                  style={styles.photoAvatar}
-                  resizeMode="cover"
-                />
-                <View style={styles.cameraIconBadge}>
-                  <Ionicons name="camera" size={14} color="#FFFFFF" />
-                </View>
-              </View>
-              <View style={styles.photoInfo}>
-                <Text style={styles.photoLabel}>Display Picture</Text>
-                <Text style={styles.photoHint}>Optional. Helps other users identify you safely.</Text>
-                <TouchableOpacity
-                  style={styles.changePhotoBtn}
-                  onPress={() => Alert.alert('Profile Photo', 'Photo selected from library.')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.changePhotoBtnText}>Change Photo</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-
-          {/* 6. PRIMARY IDENTITY DETAILS */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionHeading}>Personal Details</Text>
-
-            {/* Full Name (Required) */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>
-                Full Name <Text style={styles.requiredStar}>*</Text>
-              </Text>
-              <View
-                style={[
-                  styles.inputBox,
-                  focusedField === 'fullName' && styles.inputBoxFocused,
-                ]}
+            {/* Photo Action Links */}
+            <View style={styles.photoActionsRow}>
+              <TouchableOpacity
+                onPress={() =>
+                  Alert.alert('Change Photo', 'Select a new profile photo from your library.')
+                }
+                activeOpacity={0.7}
               >
-                <Ionicons name="person" size={18} color="#64748B" style={styles.inputLeadingIcon} />
+                <Text style={styles.changePhotoText}>Change Photo</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setProfilePhotoUrl(null);
+                  Alert.alert('Photo Removed', 'Default avatar has been restored.');
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.removePhotoText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Verified Student Badge Pill */}
+            <View style={styles.verifiedStudentPill}>
+              <Ionicons name="checkmark" size={13} color="#059669" style={{ marginRight: 5 }} />
+              <Text style={styles.verifiedStudentPillText}>Verified student</Text>
+            </View>
+          </View>
+
+          {/* 3. INPUT FORM FIELDS */}
+          <View style={styles.formCard}>
+            {/* Field 1: Full Name */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Full Name</Text>
+              <View style={styles.inputBox}>
                 <TextInput
                   style={styles.textInput}
                   value={fullName}
                   onChangeText={setFullName}
                   placeholder="Enter full name"
                   placeholderTextColor="#94A3B8"
-                  onFocus={() => setFocusedField('fullName')}
-                  onBlur={() => setFocusedField(null)}
                 />
+              </View>
+              <Text style={styles.fieldHelperText}>
+                Changes to your verified name require review.
+              </Text>
+            </View>
+
+            {/* Field 2: Email (Locked) */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Email</Text>
+              <View style={[styles.inputBox, styles.inputBoxLocked]}>
+                <Text style={styles.lockedInputText} numberOfLines={1}>
+                  {email}
+                </Text>
+                <Ionicons name="lock-closed-outline" size={17} color="#94A3B8" />
               </View>
             </View>
 
-            {/* Date of Birth */}
-            <View style={[styles.fieldGroup, { marginBottom: 0 }]}>
-              <Text style={styles.fieldLabel}>Date of Birth</Text>
-              <View
-                style={[
-                  styles.inputBox,
-                  focusedField === 'dob' && styles.inputBoxFocused,
-                ]}
-              >
-                <Ionicons
-                  name="calendar-outline"
-                  size={18}
-                  color="#64748B"
-                  style={styles.inputLeadingIcon}
-                />
+            {/* Field 3: Contact Number */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Contact Number</Text>
+              <View style={styles.inputBox}>
                 <TextInput
                   style={styles.textInput}
-                  value={dob}
-                  onChangeText={setDob}
-                  placeholder="YYYY-MM-DD"
+                  value={contactNumber}
+                  onChangeText={setContactNumber}
+                  placeholder="+94 77 123 4567"
                   placeholderTextColor="#94A3B8"
-                  keyboardType="numbers-and-punctuation"
-                  onFocus={() => setFocusedField('dob')}
-                  onBlur={() => setFocusedField(null)}
+                  keyboardType="phone-pad"
                 />
               </View>
             </View>
+
+            {/* Field 4: Profile Type (Locked) */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Profile Type</Text>
+              <View style={[styles.inputBox, styles.inputBoxLocked]}>
+                <Text style={styles.lockedInputText}>{profileType}</Text>
+                <Ionicons name="lock-closed-outline" size={17} color="#94A3B8" />
+              </View>
+            </View>
+
+            {/* 4. BLUE INFORMATION CALLOUT */}
+            <View style={styles.infoCalloutCard}>
+              <Ionicons
+                name="information-circle-outline"
+                size={20}
+                color="#3B82F6"
+                style={styles.infoCalloutIcon}
+              />
+              <Text style={styles.infoCalloutText}>
+                Student buyers must keep a student profile. Your account type cannot be changed here.
+              </Text>
+            </View>
+
+            {/* 5. STUDENT ID ATTACHMENT SECTION */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Student ID or Enrolment Evidence</Text>
+              <TouchableOpacity
+                style={styles.idUploadCard}
+                onPress={() => {
+                  setStudentEvidenceFile('Student_ID_Proof.pdf');
+                  Alert.alert(
+                    'Student ID Upload',
+                    'Upload or change your student ID card or official enrolment letter.',
+                    [
+                      {
+                        text: 'Choose PDF / Photo',
+                        onPress: () => {
+                          setStudentEvidenceFile('Student_ID_Proof.pdf');
+                          Alert.alert('Success', 'Student ID document has been attached.');
+                        },
+                      },
+                      { text: 'Cancel', style: 'cancel' },
+                    ]
+                  );
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={styles.idIconBox}>
+                  <Ionicons name="card-outline" size={22} color="#2563EB" />
+                </View>
+                <View style={styles.idInfoCol}>
+                  <Text style={styles.idTitle} numberOfLines={1}>
+                    {studentEvidenceFile || 'Attach Student ID card'}
+                  </Text>
+                  <Text style={styles.idSubtitle}>PDF, PNG or JPG • Verified student ID</Text>
+                </View>
+                <View style={styles.idCheckBadge}>
+                  <Ionicons name="checkmark-circle" size={18} color="#059669" />
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* 6. COLLAPSIBLE ACCORDION: University details · Protected */}
+            <View style={styles.accordionContainer}>
+              <TouchableOpacity
+                style={styles.accordionHeader}
+                onPress={() => setIsAccordionOpen(!isAccordionOpen)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={isAccordionOpen ? 'caret-down' : 'caret-forward'}
+                  size={14}
+                  color="#64748B"
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={styles.accordionTitle}>University details · Protected</Text>
+              </TouchableOpacity>
+
+              {/* Expanded details automatically filled from email */}
+              {isAccordionOpen && (
+                <View style={styles.accordionContent}>
+                  {/* University */}
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>University</Text>
+                    <Text style={styles.detailValue}>{parsedUni.university}</Text>
+                  </View>
+
+                  {/* Faculty */}
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Faculty</Text>
+                    <Text style={styles.detailValue}>{parsedUni.faculty}</Text>
+                  </View>
+
+                  {/* Department / Programme */}
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Department / Programme</Text>
+                    <Text style={styles.detailValue}>{parsedUni.department}</Text>
+                  </View>
+
+                  {/* Intake / Batch */}
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Intake / Batch</Text>
+                    <Text style={styles.detailValue}>
+                      {parsedUni.intakeBatch} ({parsedUni.intakeFull})
+                    </Text>
+                  </View>
+
+                  {/* Student registration number */}
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Student registration number</Text>
+                    <Text style={styles.detailValue}>{parsedUni.regNumber}</Text>
+                  </View>
+
+                  {/* Need a correction */}
+                  <View style={styles.correctionBox}>
+                    <Text style={styles.correctionTitle}>Need a correction?</Text>
+                    <Text style={styles.correctionMessage}>
+                      Identity changes need a new verification review.
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* 7. SAVE CHANGES BUTTON */}
+            <TouchableOpacity
+              style={styles.saveChangesBtn}
+              onPress={handleSave}
+              disabled={saving}
+              activeOpacity={0.85}
+            >
+              {saving ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.saveChangesBtnText}>Save Changes</Text>
+              )}
+            </TouchableOpacity>
           </View>
-
-          {/* 7. ACADEMIC VERIFICATION (Student Buyer & Student Provider) */}
-          {!isExternalProvider && (
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionHeading}>Academic Details</Text>
-
-              {/* University (Required) */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>
-                  University <Text style={styles.requiredStar}>*</Text>
-                </Text>
-                <TouchableOpacity
-                  style={styles.inputBox}
-                  onPress={() => setShowUniModal(true)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="school" size={18} color="#64748B" style={styles.inputLeadingIcon} />
-                  <Text
-                    style={[
-                      styles.selectorText,
-                      !university && styles.selectorPlaceholder,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {university || 'Select University'}
-                  </Text>
-                  <Ionicons name="chevron-down" size={18} color="#64748B" style={styles.inputTrailingIcon} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Student Registration Number (Required) */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>
-                  Student Registration Number <Text style={styles.requiredStar}>*</Text>
-                </Text>
-                <View
-                  style={[
-                    styles.inputBox,
-                    focusedField === 'studentReg' && styles.inputBoxFocused,
-                  ]}
-                >
-                  <Ionicons name="card-outline" size={18} color="#64748B" style={styles.inputLeadingIcon} />
-                  <TextInput
-                    style={styles.textInput}
-                    value={studentRegNumber}
-                    onChangeText={setStudentRegNumber}
-                    placeholder="e.g. 22/COM/0589 or S/18/123"
-                    placeholderTextColor="#94A3B8"
-                    autoCapitalize="characters"
-                    onFocus={() => setFocusedField('studentReg')}
-                    onBlur={() => setFocusedField(null)}
-                  />
-                </View>
-              </View>
-
-              {/* Current Student ID or Enrolment Evidence (Required) */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>
-                  Current Student ID or Enrolment Evidence <Text style={styles.requiredStar}>*</Text>
-                </Text>
-                <TouchableOpacity
-                  style={styles.uploadCard}
-                  onPress={() => {
-                    setStudentEvidenceFile('Student_ID_Proof.pdf');
-                    Alert.alert('Evidence Uploaded', 'Student ID document has been attached.');
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.uploadIconCircle}>
-                    <Ionicons name="cloud-upload-outline" size={22} color="#2563EB" />
-                  </View>
-                  <View style={styles.uploadTextContainer}>
-                    <Text style={styles.uploadCardTitle}>
-                      {studentEvidenceFile || 'Upload Student ID / Enrolment Letter'}
-                    </Text>
-                    <Text style={styles.uploadCardSubtitle}>
-                      {studentEvidenceFile
-                        ? 'Attachment ready for review (Tap to replace)'
-                        : 'PDF or image format, max 5MB'}
-                    </Text>
-                  </View>
-                  {studentEvidenceFile && (
-                    <Ionicons name="checkmark-circle" size={22} color="#10B981" />
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {/* Faculty / Department (Optional) */}
-              <View style={[styles.fieldGroup, { marginBottom: 0 }]}>
-                <Text style={styles.fieldLabel}>Faculty / Department (Optional)</Text>
-                <TouchableOpacity
-                  style={styles.inputBox}
-                  onPress={() => setShowFacultyModal(true)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="business" size={18} color="#64748B" style={styles.inputLeadingIcon} />
-                  <Text
-                    style={[
-                      styles.selectorText,
-                      !faculty && styles.selectorPlaceholder,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {faculty || 'Select Faculty'}
-                  </Text>
-                  <Ionicons name="chevron-down" size={18} color="#64748B" style={styles.inputTrailingIcon} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* 8. EXTERNAL IDENTITY VERIFICATION (External Provider Only) */}
-          {isExternalProvider && (
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionHeading}>Identity Verification</Text>
-
-              {/* NIC Number (Required) */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>
-                  NIC Number <Text style={styles.requiredStar}>*</Text>
-                </Text>
-                <View
-                  style={[
-                    styles.inputBox,
-                    focusedField === 'nic' && styles.inputBoxFocused,
-                  ]}
-                >
-                  <Ionicons name="id-card-outline" size={18} color="#64748B" style={styles.inputLeadingIcon} />
-                  <TextInput
-                    style={styles.textInput}
-                    value={nicNumber}
-                    onChangeText={setNicNumber}
-                    placeholder="e.g. 200113304567 or 981234567V"
-                    placeholderTextColor="#94A3B8"
-                    autoCapitalize="characters"
-                    onFocus={() => setFocusedField('nic')}
-                    onBlur={() => setFocusedField(null)}
-                  />
-                </View>
-              </View>
-
-              {/* Identity Evidence (Required) */}
-              <View style={[styles.fieldGroup, { marginBottom: 0 }]}>
-                <Text style={styles.fieldLabel}>
-                  NIC Number & Identity Evidence <Text style={styles.requiredStar}>*</Text>
-                </Text>
-                <TouchableOpacity
-                  style={styles.uploadCard}
-                  onPress={() => {
-                    setIdentityEvidenceFile('NIC_Front_Back_Proof.pdf');
-                    Alert.alert('Identity Evidence', 'NIC front & back scan attached.');
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.uploadIconCircle}>
-                    <Ionicons name="shield-checkmark-outline" size={22} color="#0D9488" />
-                  </View>
-                  <View style={styles.uploadTextContainer}>
-                    <Text style={styles.uploadCardTitle}>
-                      {identityEvidenceFile || 'Upload NIC Front & Back / Passport'}
-                    </Text>
-                    <Text style={styles.uploadCardSubtitle}>
-                      {identityEvidenceFile
-                        ? 'Evidence attached for manual review (Tap to replace)'
-                        : 'Required for proposed manual identity review'}
-                    </Text>
-                  </View>
-                  {identityEvidenceFile && (
-                    <Ionicons name="checkmark-circle" size={22} color="#10B981" />
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* 9. PROVIDER DETAILS (Student Provider & External Provider) */}
-          {(isStudentProvider || isExternalProvider) && (
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionHeading}>Provider & Business Details</Text>
-
-              {/* Provider Display Name (Required) */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>
-                  Provider Display Name <Text style={styles.requiredStar}>*</Text>
-                </Text>
-                <View
-                  style={[
-                    styles.inputBox,
-                    focusedField === 'providerName' && styles.inputBoxFocused,
-                  ]}
-                >
-                  <Ionicons name="storefront-outline" size={18} color="#64748B" style={styles.inputLeadingIcon} />
-                  <TextInput
-                    style={styles.textInput}
-                    value={providerDisplayName}
-                    onChangeText={setProviderDisplayName}
-                    placeholder="e.g. Apex Tech or Amaya's Shop"
-                    placeholderTextColor="#94A3B8"
-                    onFocus={() => setFocusedField('providerName')}
-                    onBlur={() => setFocusedField(null)}
-                  />
-                </View>
-              </View>
-
-              {/* Service / Pickup Area (Required) */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>
-                  Service / Pickup Area <Text style={styles.requiredStar}>*</Text>
-                </Text>
-                <View
-                  style={[
-                    styles.inputBox,
-                    focusedField === 'serviceArea' && styles.inputBoxFocused,
-                  ]}
-                >
-                  <Ionicons name="location-outline" size={18} color="#64748B" style={styles.inputLeadingIcon} />
-                  <TextInput
-                    style={styles.textInput}
-                    value={serviceArea}
-                    onChangeText={setServiceArea}
-                    placeholder="e.g. Belihuloya Campus & Surrounding Area"
-                    placeholderTextColor="#94A3B8"
-                    onFocus={() => setFocusedField('serviceArea')}
-                    onBlur={() => setFocusedField(null)}
-                  />
-                </View>
-              </View>
-
-              {/* Short Provider Description (Optional) */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Short Provider Description (Optional)</Text>
-                <View
-                  style={[
-                    styles.textAreaBox,
-                    focusedField === 'desc' && styles.inputBoxFocused,
-                  ]}
-                >
-                  <TextInput
-                    style={styles.textAreaInput}
-                    value={providerDescription}
-                    onChangeText={setProviderDescription}
-                    placeholder="Briefly describe your equipment, services or rental terms..."
-                    placeholderTextColor="#94A3B8"
-                    multiline
-                    numberOfLines={3}
-                    onFocus={() => setFocusedField('desc')}
-                    onBlur={() => setFocusedField(null)}
-                  />
-                </View>
-              </View>
-
-              {/* Business Name (If applicable) */}
-              <View style={[styles.fieldGroup, { marginBottom: 0 }]}>
-                <Text style={styles.fieldLabel}>Business Name (If applicable)</Text>
-                <View
-                  style={[
-                    styles.inputBox,
-                    focusedField === 'bizName' && styles.inputBoxFocused,
-                  ]}
-                >
-                  <Ionicons name="business-outline" size={18} color="#64748B" style={styles.inputLeadingIcon} />
-                  <TextInput
-                    style={styles.textInput}
-                    value={businessName}
-                    onChangeText={setBusinessName}
-                    placeholder="Registered business name (optional)"
-                    placeholderTextColor="#94A3B8"
-                    onFocus={() => setFocusedField('bizName')}
-                    onBlur={() => setFocusedField(null)}
-                  />
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* 10. SAVE ACTION BUTTON */}
-          <TouchableOpacity
-            style={styles.saveButton}
-            onPress={handleSave}
-            activeOpacity={0.85}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-sharp" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.saveButtonText}>Save & Complete Profile</Text>
-              </>
-            )}
-          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* 11. UNIVERSITY SELECTION MODAL */}
-      <Modal
-        visible={showUniModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowUniModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowUniModal(false)}
-        >
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select University</Text>
-              <TouchableOpacity onPress={() => setShowUniModal(false)} hitSlop={10}>
-                <Ionicons name="close" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
-              {SRI_LANKAN_UNIVERSITIES.map((item, index) => {
-                const isSelected = university === item;
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.modalOptionRow,
-                      isSelected && styles.modalOptionRowActive,
-                    ]}
-                    onPress={() => {
-                      setUniversity(item);
-                      setShowUniModal(false);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.modalOptionText,
-                        isSelected && styles.modalOptionTextActive,
-                      ]}
-                    >
-                      {item}
-                    </Text>
-                    {isSelected && (
-                      <Ionicons name="checkmark" size={18} color="#2563EB" />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* 12. FACULTY SELECTION MODAL */}
-      <Modal
-        visible={showFacultyModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowFacultyModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowFacultyModal(false)}
-        >
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Faculty</Text>
-              <TouchableOpacity onPress={() => setShowFacultyModal(false)} hitSlop={10}>
-                <Ionicons name="close" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
-              {FACULTIES.map((item, index) => {
-                const isSelected = faculty === item;
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.modalOptionRow,
-                      isSelected && styles.modalOptionRowActive,
-                    ]}
-                    onPress={() => {
-                      setFaculty(item);
-                      setShowFacultyModal(false);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.modalOptionText,
-                        isSelected && styles.modalOptionTextActive,
-                      ]}
-                    >
-                      {item}
-                    </Text>
-                    {isSelected && (
-                      <Ionicons name="checkmark" size={18} color="#2563EB" />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* 13. SUCCESS CONFIRMATION MODAL */}
+      {/* 8. SUCCESS CONFIRMATION MODAL */}
       <Modal
         visible={showSuccessModal}
         transparent
         animationType="fade"
         onRequestClose={() => setShowSuccessModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowSuccessModal(false)}
+        >
           <View style={styles.successModalCard}>
-            <View style={styles.successIconCircle}>
-              <Ionicons name="checkmark-circle" size={54} color="#10B981" />
+            <View style={styles.successModalIconBox}>
+              <Ionicons name="checkmark-circle" size={44} color="#059669" />
             </View>
-            <Text style={styles.successTitle}>Profile Completed!</Text>
-            <Text style={styles.successMessage}>
-              Your details have been saved successfully and your verification badge is now active.
+            <Text style={styles.successModalTitle}>Profile Updated</Text>
+            <Text style={styles.successModalMessage}>
+              Your student profile and academic details have been successfully saved and verified.
             </Text>
+
             <TouchableOpacity
               style={styles.successDoneBtn}
               onPress={() => {
                 setShowSuccessModal(false);
-                if (router.canGoBack()) {
-                  router.back();
-                } else {
-                  router.replace('/profile');
-                }
+                router.replace('/profile');
               }}
               activeOpacity={0.85}
             >
               <Text style={styles.successDoneBtnText}>Done</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -877,400 +666,300 @@ export default function StudentDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'flex-start',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
     color: '#0F172A',
     letterSpacing: -0.3,
   },
-  headerPlaceholder: {
-    width: 40,
+  saveHeaderBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  saveHeaderBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2563EB',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingBottom: 36,
   },
-  // Blue Info Banner
-  infoBanner: {
-    flexDirection: 'row',
+  // Avatar Section
+  avatarSection: {
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 16,
+    paddingTop: 24,
+    paddingBottom: 20,
   },
-  infoIconWrapper: {
-    marginRight: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  infoBannerText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#1E3A8A',
-    lineHeight: 18,
-  },
-  closeBannerBtn: {
-    padding: 4,
-    marginLeft: 6,
-  },
-  // Role Badges
-  badgeWrapper: {
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  studentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#8B5CF6',
-    paddingVertical: 6,
-    paddingHorizontal: 18,
-    borderRadius: 20,
-  },
-  studentProviderBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#6366F1',
-    paddingVertical: 6,
-    paddingHorizontal: 18,
-    borderRadius: 20,
-  },
-  externalProviderBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0D9488',
-    paddingVertical: 6,
-    paddingHorizontal: 18,
-    borderRadius: 20,
-  },
-  studentBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  // Section Cards
-  sectionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  sectionHeading: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 4,
-  },
-  sectionSubtext: {
-    fontSize: 12.5,
-    color: '#64748B',
-    marginBottom: 14,
-    lineHeight: 17,
-  },
-  // Profile Photo Row
-  photoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  photoAvatarWrapper: {
+  avatarWrapper: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     position: 'relative',
-    marginRight: 16,
+    marginBottom: 12,
   },
-  photoAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  avatarImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: '#E2E8F0',
   },
   cameraIconBadge: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#2563EB',
-    width: 22,
-    height: 22,
-    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#FFFFFF',
   },
-  photoInfo: {
-    flex: 1,
-  },
-  photoLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 2,
-  },
-  photoHint: {
-    fontSize: 12,
-    color: '#64748B',
-    marginBottom: 8,
-  },
-  changePhotoBtn: {
-    backgroundColor: '#EFF6FF',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-  },
-  changePhotoBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  // Form Field Groups
-  fieldGroup: {
-    marginBottom: 14,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
-    marginBottom: 6,
-  },
-  requiredStar: {
-    color: '#EF4444',
-  },
-  inputBox: {
+  photoActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
-    height: 48,
-    paddingHorizontal: 12,
+    gap: 24,
+    marginBottom: 14,
   },
-  inputBoxReadOnly: {
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
-  },
-  readOnlyText: {
-    flex: 1,
+  changePhotoText: {
     fontSize: 14,
-    color: '#475569',
     fontWeight: '600',
+    color: '#2563EB',
   },
-  verifiedTag: {
+  removePhotoText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+  verifiedStudentPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#A7F3D0',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 20,
   },
-  verifiedTagText: {
-    fontSize: 11,
-    fontWeight: '700',
+  verifiedStudentPillText: {
     color: '#059669',
+    fontSize: 12.5,
+    fontWeight: '700',
   },
-  inputBoxFocused: {
-    borderColor: '#2563EB',
-    backgroundColor: '#FAFCFF',
+  // Form fields
+  formCard: {
+    paddingHorizontal: 20,
   },
-  inputLeadingIcon: {
-    marginRight: 10,
+  fieldGroup: {
+    marginBottom: 18,
   },
-  inputTrailingIcon: {
-    marginLeft: 8,
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginBottom: 8,
+  },
+  inputBox: {
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  inputBoxLocked: {
+    backgroundColor: '#F8FAFC',
   },
   textInput: {
     flex: 1,
-    fontSize: 14.5,
+    fontSize: 15,
     color: '#0F172A',
     fontWeight: '500',
-    height: '100%',
   },
-  textAreaBox: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minHeight: 80,
-  },
-  textAreaInput: {
-    fontSize: 14,
-    color: '#0F172A',
-    fontWeight: '500',
-    textAlignVertical: 'top',
-  },
-  selectorText: {
+  lockedInputText: {
     flex: 1,
-    fontSize: 14,
-    color: '#0F172A',
+    fontSize: 15,
+    color: '#64748B',
     fontWeight: '500',
   },
-  selectorPlaceholder: {
-    color: '#94A3B8',
+  fieldHelperText: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 6,
   },
-  // Upload Card
-  uploadCard: {
+  // Info callout
+  infoCalloutCard: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 18,
+  },
+  infoCalloutIcon: {
+    marginRight: 10,
+    marginTop: 1,
+  },
+  infoCalloutText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1E40AF',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  // Student ID upload card
+  idUploadCard: {
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FAFAFC',
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
   },
-  uploadIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  idIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  uploadTextContainer: {
+  idInfoCol: {
     flex: 1,
   },
-  uploadCardTitle: {
+  idTitle: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#1E293B',
     marginBottom: 2,
   },
-  uploadCardSubtitle: {
+  idSubtitle: {
     fontSize: 11.5,
     color: '#64748B',
   },
-  // Save Button
-  saveButton: {
-    backgroundColor: '#2563EB',
-    height: 50,
+  idCheckBadge: {
+    marginLeft: 8,
+  },
+  // Collapsible Accordion
+  accordionContainer: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 22,
+    overflow: 'hidden',
+  },
+  accordionHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#FAFAFA',
+  },
+  accordionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  accordionContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 14,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  detailRow: {
+    marginBottom: 12,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  correctionBox: {
+    marginTop: 6,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  correctionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 2,
+  },
+  correctionMessage: {
+    fontSize: 12.5,
+    color: '#64748B',
+    lineHeight: 17,
+  },
+  // Save button
+  saveChangesBtn: {
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: '#2563EB',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 6,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
   },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15.5,
+  saveChangesBtnText: {
+    fontSize: 15,
     fontWeight: '700',
+    color: '#FFFFFF',
   },
-  // Modals
-  modalOverlay: {
+  // Success Modal
+  modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
-  modalCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 16,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 6,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    marginBottom: 8,
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  modalOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
-    borderRadius: 8,
-  },
-  modalOptionRowActive: {
-    backgroundColor: '#EFF6FF',
-  },
-  modalOptionText: {
-    fontSize: 14,
-    color: '#334155',
-    fontWeight: '500',
-    flex: 1,
-    marginRight: 10,
-  },
-  modalOptionTextActive: {
-    color: '#2563EB',
-    fontWeight: '700',
-  },
-  // Success Modal
   successModalCard: {
-    width: '85%',
+    width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 22,
+    paddingTop: 24,
+    paddingBottom: 20,
     alignItems: 'center',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 10 },
@@ -1278,33 +967,39 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 6,
   },
-  successIconCircle: {
+  successModalIconBox: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 14,
   },
-  successTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+  successModalTitle: {
+    fontSize: 19,
+    fontWeight: '700',
     color: '#0F172A',
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  successMessage: {
-    fontSize: 13.5,
+  successModalMessage: {
+    fontSize: 14,
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 20,
+    marginBottom: 22,
   },
   successDoneBtn: {
-    backgroundColor: '#2563EB',
     width: '100%',
     height: 46,
     borderRadius: 12,
+    backgroundColor: '#2563EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   successDoneBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
