@@ -18,6 +18,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import authService from '@/services/authService';
 import BottomNav from '@/components/BottomNav';
+import { parseUniversityEmail } from './StudentDetailsScreen';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -97,20 +98,37 @@ export default function ProfileScreen() {
     }
   };
 
-  // Derive dynamic user details with sensible fallbacks matching design
-  const displayName =
-    user?.userProfile?.fullName ||
-    user?.email?.split('@')[0] ||
-    'Tharindu Asma';
-
-  const displayEmail = user?.email || 'tharindu@university.lk';
+  const displayEmail = user?.email || '22cse0373@ms.sab.ac.lk';
   const displayPhone =
     user?.contactNumber ||
     user?.userProfile?.contactNumber ||
     '+94 77 123 4567';
 
-  // Profile completion status: database isCompleted OR local completed flag
-  const isProfileCompleted = Boolean(user?.userProfile?.isCompleted) || profileCompletedLocal;
+  // Automatically parse email to derive registration number (e.g. 22CSE0373)
+  const parsedUni = parseUniversityEmail(displayEmail);
+  const regNumber = parsedUni.regNumber;
+
+  // Real full name check: must be entered and not equal to registration number
+  const rawFullName = user?.userProfile?.fullName?.trim();
+  const hasRealFullName = Boolean(
+    rawFullName &&
+    rawFullName.toUpperCase() !== regNumber.toUpperCase() &&
+    rawFullName.toLowerCase() !== displayEmail.split('@')[0].toLowerCase()
+  );
+
+  // Student ID document check: verify if student uploaded student ID
+  const studentIdDoc = user?.userProfile?.studentEvidenceUrl || user?.providerProfile?.verificationDocUrl;
+  const hasUploadedStudentId = Boolean(studentIdDoc && studentIdDoc.trim());
+
+  // Default shows registration number until student adds real full name
+  const displayName = hasRealFullName ? rawFullName : regNumber;
+
+  // Profile completion status: ONLY completed after full name is added AND student ID is uploaded
+  const isProfileCompleted = Boolean(
+    hasRealFullName &&
+    hasUploadedStudentId &&
+    (user?.userProfile?.isCompleted || profileCompletedLocal)
+  );
 
   // User Type: STUDENT, STUDENT_PROVIDER, or EXTERNAL_PROVIDER
   const isProvider =
