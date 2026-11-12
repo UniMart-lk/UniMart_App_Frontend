@@ -247,10 +247,15 @@ export default function StudentDetailsScreen() {
 
   // User credentials & identity
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('22cse0373@ms.sab.ac.lk');
-  const [contactNumber, setContactNumber] = useState('+94 77 123 4567');
-  const [profileType, setProfileType] = useState('Student buyer');
+  const [email, setEmail] = useState('amaya@student.demo.example');
+  const [contactNumber, setContactNumber] = useState('+94 77 234 5678');
+  const [profileType, setProfileType] = useState('Student provider');
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
+
+  // Provider specific fields (Amaya's Campus Essentials)
+  const [providerDisplayName, setProviderDisplayName] = useState("Amaya's Campus Essentials");
+  const [serviceArea, setServiceArea] = useState('Belihuloya');
+  const [aboutService, setAboutService] = useState('Study essentials and affordable rentals for students.');
 
   // Student Evidence File: null by default so it's always verified
   const [studentEvidenceFile, setStudentEvidenceFile] = useState(null);
@@ -265,6 +270,9 @@ export default function StudentDetailsScreen() {
   const [saving, setSaving] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
+  // Is this a Student Provider profile?
+  const isStudentProvider = profileType === 'Student provider' || profileType === 'STUDENT_PROVIDER';
+
   // Automatically computed university details based on the email
   const parsedUni = useMemo(() => {
     return parseUniversityEmail(email);
@@ -277,15 +285,23 @@ export default function StudentDetailsScreen() {
   const loadUserData = async () => {
     try {
       const stored = await authService.getStoredUser();
-      const userEmail = stored?.email || '22cse0373@ms.sab.ac.lk';
+      const storedBadge = await authService.getStoredBadgeType();
+
+      const isProv =
+        storedBadge === 'STUDENT_PROVIDER' ||
+        storedBadge === 'EXTERNAL_PROVIDER' ||
+        stored?.role === 'PROVIDER' ||
+        Boolean(stored?.providerProfile);
+
+      const userEmail = stored?.email || (isProv ? 'amaya@student.demo.example' : '22cse0373@ms.sab.ac.lk');
       setEmail(userEmail);
+
+      const parsed = parseUniversityEmail(userEmail);
+      const regNumber = parsed.regNumber;
 
       if (stored?.contactNumber) setContactNumber(stored.contactNumber);
       if (stored?.userProfile?.contactNumber) setContactNumber(stored.userProfile.contactNumber);
       if (stored?.userProfile?.profilePictureUrl) setProfilePhotoUrl(stored.userProfile.profilePictureUrl);
-
-      const parsed = parseUniversityEmail(userEmail);
-      const regNumber = parsed.regNumber;
 
       // Real full name check
       const rawName = stored?.userProfile?.fullName?.trim();
@@ -299,15 +315,32 @@ export default function StudentDetailsScreen() {
       if (hasRealName) {
         setFullName(rawName);
       } else {
-        setFullName(regNumber);
+        setFullName(isProv ? "Amaya Perera" : regNumber);
       }
 
       // Check if student ID document is uploaded
-      const existingId = stored?.userProfile?.studentEvidenceUrl;
+      const existingId = stored?.userProfile?.studentEvidenceUrl || stored?.providerProfile?.verificationDocUrl;
       if (existingId && existingId.trim()) {
         setStudentEvidenceFile(existingId.trim());
       } else {
         setStudentEvidenceFile(null);
+      }
+
+      // Provider details
+      if (stored?.providerProfile?.displayName) {
+        setProviderDisplayName(stored.providerProfile.displayName);
+      }
+      if (stored?.providerProfile?.serviceArea) {
+        setServiceArea(stored.providerProfile.serviceArea);
+      }
+      if (stored?.providerProfile?.description) {
+        setAboutService(stored.providerProfile.description);
+      }
+
+      if (isProv) {
+        setProfileType('Student provider');
+      } else {
+        setProfileType('Student buyer');
       }
 
       // Completed check: must have real full name AND uploaded student ID
@@ -318,17 +351,6 @@ export default function StudentDetailsScreen() {
         stored?.userProfile?.isCompleted
       );
       setIsProfileCompleted(completed);
-
-      const isProv = stored?.role === 'PROVIDER' || Boolean(stored?.providerProfile);
-      const isExt =
-        stored?.providerProfile?.providerType === 'EXTERNAL_PROVIDER' ||
-        stored?.userProfile?.userType === 'EXTERNAL';
-
-      if (isProv) {
-        setProfileType(isExt ? 'External provider' : 'Student provider');
-      } else {
-        setProfileType('Student buyer');
-      }
     } catch {
       // Keep sensible initial defaults
     }
@@ -359,12 +381,27 @@ export default function StudentDetailsScreen() {
       return;
     }
 
+    // 3. Provider validations
+    if (isStudentProvider) {
+      if (!providerDisplayName.trim()) {
+        Alert.alert('Required', 'Please enter your Provider Display Name.');
+        return;
+      }
+      if (!serviceArea.trim()) {
+        Alert.alert('Required', 'Please enter your Service / Pickup Area.');
+        return;
+      }
+    }
+
     setSaving(true);
 
     try {
       await authService.updateProfile({
         fullName: trimmedName,
         contactNumber: contactNumber.trim(),
+        providerDisplayName: isStudentProvider ? providerDisplayName.trim() : null,
+        serviceArea: isStudentProvider ? serviceArea.trim() : null,
+        description: isStudentProvider ? aboutService.trim() : null,
         university: parsedUni.university,
         faculty: parsedUni.faculty,
         department: parsedUni.department,
@@ -372,8 +409,10 @@ export default function StudentDetailsScreen() {
         studentRegistrationNumber: parsedUni.regNumber,
         studentEvidenceUrl: studentEvidenceFile.trim(),
         profilePictureUrl: profilePhotoUrl,
+        isProvider: isStudentProvider,
+        providerType: isStudentProvider ? 'STUDENT_PROVIDER' : 'STUDENT',
         isCompleted: true,
-        badgeType: 'STUDENT',
+        badgeType: isStudentProvider ? 'STUDENT_PROVIDER' : 'STUDENT',
       });
 
       setIsProfileCompleted(true);
@@ -529,7 +568,7 @@ export default function StudentDetailsScreen() {
                   style={styles.textInput}
                   value={contactNumber}
                   onChangeText={setContactNumber}
-                  placeholder="+94 77 123 4567"
+                  placeholder="+94 77 234 5678"
                   placeholderTextColor="#94A3B8"
                   keyboardType="phone-pad"
                 />
@@ -545,7 +584,65 @@ export default function StudentDetailsScreen() {
               </View>
             </View>
 
-            {/* 4. BLUE INFORMATION CALLOUT */}
+            {/* 4. PROVIDER INFORMATION SECTION (Shown for Student Provider) */}
+            {isStudentProvider && (
+              <View style={styles.providerSectionWrapper}>
+                <Text style={styles.sectionHeaderTitle}>PROVIDER INFORMATION</Text>
+
+                {/* Provider Display Name */}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Provider Display Name</Text>
+                  <View style={styles.inputBox}>
+                    <TextInput
+                      style={styles.textInput}
+                      value={providerDisplayName}
+                      onChangeText={setProviderDisplayName}
+                      placeholder="e.g. Amaya's Campus Essentials"
+                      placeholderTextColor="#94A3B8"
+                    />
+                  </View>
+                </View>
+
+                {/* Service / Pickup Area */}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Service / Pickup Area</Text>
+                  <View style={styles.inputBox}>
+                    <TextInput
+                      style={styles.textInput}
+                      value={serviceArea}
+                      onChangeText={setServiceArea}
+                      placeholder="e.g. Belihuloya"
+                      placeholderTextColor="#94A3B8"
+                    />
+                  </View>
+                </View>
+
+                {/* About Your Service (Optional) */}
+                <View style={styles.fieldGroup}>
+                  <View style={styles.fieldLabelRow}>
+                    <Text style={styles.fieldLabel}>About Your Service</Text>
+                    <Text style={styles.optionalLabel}>Optional</Text>
+                  </View>
+                  <View style={styles.textAreaBox}>
+                    <TextInput
+                      style={styles.textAreaInput}
+                      value={aboutService}
+                      onChangeText={setAboutService}
+                      placeholder="Study essentials and affordable rentals for students."
+                      placeholderTextColor="#94A3B8"
+                      multiline
+                      numberOfLines={3}
+                      textAlignVertical="top"
+                    />
+                    <View style={styles.textAreaResizeIcon}>
+                      <Ionicons name="reorder-two-outline" size={14} color="#CBD5E1" />
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* 5. INFORMATION CALLOUT */}
             <View style={styles.infoCalloutCard}>
               <Ionicons
                 name="information-circle-outline"
@@ -554,11 +651,13 @@ export default function StudentDetailsScreen() {
                 style={styles.infoCalloutIcon}
               />
               <Text style={styles.infoCalloutText}>
-                Student buyers must keep a student profile. Your account type cannot be changed here.
+                {isStudentProvider
+                  ? 'Your provider type is linked to your verified identity and cannot be changed here.'
+                  : 'Student buyers must keep a student profile. Your account type cannot be changed here.'}
               </Text>
             </View>
 
-            {/* 5. STUDENT ID ATTACHMENT SECTION (Required) */}
+            {/* 6. STUDENT ID ATTACHMENT SECTION (Required) */}
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>
                 Student ID or Enrolment Evidence{' '}
@@ -626,7 +725,7 @@ export default function StudentDetailsScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* 6. COLLAPSIBLE ACCORDION: University details · Protected */}
+            {/* 7. COLLAPSIBLE ACCORDION: University details · Protected */}
             <View style={styles.accordionContainer}>
               <TouchableOpacity
                 style={styles.accordionHeader}
@@ -688,7 +787,7 @@ export default function StudentDetailsScreen() {
               )}
             </View>
 
-            {/* 7. SAVE CHANGES BUTTON */}
+            {/* 8. SAVE CHANGES BUTTON */}
             <TouchableOpacity
               style={styles.saveChangesBtn}
               onPress={handleSave}
@@ -705,7 +804,7 @@ export default function StudentDetailsScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* 8. SUCCESS CONFIRMATION MODAL */}
+      {/* 9. SUCCESS CONFIRMATION MODAL */}
       <Modal
         visible={showSuccessModal}
         transparent
@@ -723,7 +822,7 @@ export default function StudentDetailsScreen() {
             </View>
             <Text style={styles.successModalTitle}>Profile Updated</Text>
             <Text style={styles.successModalMessage}>
-              Your student profile and ID evidence have been successfully saved. Your student badge is now active!
+              Your {isStudentProvider ? 'Student Provider' : 'Student'} profile details have been saved and verified!
             </Text>
 
             <TouchableOpacity
@@ -862,6 +961,17 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     marginBottom: 8,
   },
+  fieldLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  optionalLabel: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
   inputBox: {
     height: 48,
     borderRadius: 10,
@@ -892,6 +1002,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
     marginTop: 6,
+  },
+  // Provider Section
+  providerSectionWrapper: {
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  sectionHeaderTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 16,
+  },
+  textAreaBox: {
+    minHeight: 88,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    position: 'relative',
+  },
+  textAreaInput: {
+    fontSize: 15,
+    color: '#0F172A',
+    fontWeight: '500',
+    lineHeight: 20,
+    minHeight: 68,
+  },
+  textAreaResizeIcon: {
+    position: 'absolute',
+    bottom: 6,
+    right: 8,
   },
   // Info callout
   infoCalloutCard: {
