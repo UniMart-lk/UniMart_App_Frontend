@@ -99,16 +99,18 @@ export default function ProfileScreen() {
   };
 
   // User Type: STUDENT, STUDENT_PROVIDER, or EXTERNAL_PROVIDER
-  const isProvider =
-    storedBadge === 'EXTERNAL_PROVIDER' ||
-    storedBadge === 'STUDENT_PROVIDER' ||
-    user?.role === 'PROVIDER' ||
-    Boolean(user?.providerProfile);
-
   const isExternal =
     storedBadge === 'EXTERNAL_PROVIDER' ||
     user?.providerProfile?.providerType === 'EXTERNAL_PROVIDER' ||
-    user?.userProfile?.userType === 'EXTERNAL';
+    user?.providerProfile?.providerType === 'External Provider' ||
+    user?.userProfile?.userType === 'EXTERNAL' ||
+    (user?.role === 'PROVIDER' && !user?.email?.includes('.ac.lk') && !user?.email?.includes('student'));
+
+  const isProvider =
+    isExternal ||
+    storedBadge === 'STUDENT_PROVIDER' ||
+    user?.role === 'PROVIDER' ||
+    Boolean(user?.providerProfile);
 
   const userType = storedBadge
     ? storedBadge
@@ -118,11 +120,18 @@ export default function ProfileScreen() {
       : 'STUDENT_PROVIDER'
     : 'STUDENT';
 
-  const displayEmail = user?.email || (isProvider ? 'amaya@student.demo.example' : '22cse0373@ms.sab.ac.lk');
+  const displayEmail =
+    user?.email ||
+    (isExternal
+      ? 'nimal@provider.demo.example'
+      : isProvider
+      ? 'amaya@student.demo.example'
+      : '22cse0373@ms.sab.ac.lk');
+
   const displayPhone =
     user?.contactNumber ||
     user?.userProfile?.contactNumber ||
-    (isProvider ? '+94 77 123 4567' : '+94 77 123 4567');
+    (isExternal ? '+94 77 345 6789' : '+94 77 123 4567');
 
   // Automatically parse email to derive registration number (e.g. 22CSE0373)
   const parsedUni = parseUniversityEmail(displayEmail);
@@ -143,14 +152,25 @@ export default function ProfileScreen() {
   // Default shows registration number until student adds real full name
   const displayName = hasRealFullName
     ? rawFullName
-    : (isProvider ? (user?.userProfile?.fullName || 'Tharindu Asma') : regNumber);
+    : isExternal
+    ? (user?.userProfile?.fullName || 'Nimal Fernando')
+    : isProvider
+    ? (user?.userProfile?.fullName || 'Tharindu Asma')
+    : regNumber;
 
-  // Profile completion status: ONLY completed after full name is added AND student ID is uploaded
-  const isProfileCompleted = Boolean(
-    hasRealFullName &&
-    hasUploadedStudentId &&
-    (user?.userProfile?.isCompleted || profileCompletedLocal)
-  );
+  // Profile completion status:
+  // For students: requires real full name AND uploaded student ID
+  // For external providers: requires real full name (no student ID or uni details needed)
+  const isProfileCompleted = isExternal
+    ? Boolean(
+        hasRealFullName &&
+        (user?.userProfile?.isCompleted || profileCompletedLocal)
+      )
+    : Boolean(
+        hasRealFullName &&
+        hasUploadedStudentId &&
+        (user?.userProfile?.isCompleted || profileCompletedLocal)
+      );
 
   const listingsCount = user?.providerProfile?.totalListings || 0;
   const rentalsCount = 3;
@@ -192,12 +212,12 @@ export default function ProfileScreen() {
               <View
                 style={[
                   styles.avatarBadgeCircle,
-                  userType === 'EXTERNAL_PROVIDER' && { backgroundColor: '#0D9488' },
-                  userType === 'STUDENT_PROVIDER' && { backgroundColor: '#8B5CF6' },
+                  isExternal && { backgroundColor: '#00A8C6' },
+                  !isExternal && userType === 'STUDENT_PROVIDER' && { backgroundColor: '#8B5CF6' },
                 ]}
               >
                 <Ionicons
-                  name={userType === 'EXTERNAL_PROVIDER' ? 'business' : 'school'}
+                  name={isExternal ? 'earth' : 'school'}
                   size={13}
                   color="#FFFFFF"
                 />
@@ -217,16 +237,15 @@ export default function ProfileScreen() {
             <View style={styles.badgesRow}>
               {isProvider ? (
                 <>
-                  {userType === 'STUDENT_PROVIDER' && (
+                  {isExternal ? (
+                    <View style={styles.externalProviderPill}>
+                      <Ionicons name="earth" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.badgePillText}>External</Text>
+                    </View>
+                  ) : (
                     <View style={styles.studentPill}>
                       <Ionicons name="school" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
                       <Text style={styles.badgePillText}>Student</Text>
-                    </View>
-                  )}
-                  {userType === 'EXTERNAL_PROVIDER' && (
-                    <View style={styles.externalProviderPill}>
-                      <Ionicons name="business" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
-                      <Text style={styles.badgePillText}>External Provider</Text>
                     </View>
                   )}
                   <View style={styles.verifiedPill}>
@@ -645,7 +664,7 @@ const styles = StyleSheet.create({
   externalProviderPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0D9488',
+    backgroundColor: '#00A8C6',
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
