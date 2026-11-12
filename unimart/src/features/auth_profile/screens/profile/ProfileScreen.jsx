@@ -185,14 +185,13 @@ export default function ProfileScreen() {
               style={styles.avatarImage}
               resizeMode="cover"
             />
-            {/* Circular badge on avatar: only shown after profile is completed */}
-            {isProfileCompleted && (
+            {/* Circular badge on avatar: only shown for providers */}
+            {isProvider && isProfileCompleted && (
               <View
                 style={[
                   styles.avatarBadgeCircle,
                   userType === 'EXTERNAL_PROVIDER' && { backgroundColor: '#0D9488' },
                   userType === 'STUDENT_PROVIDER' && { backgroundColor: '#6366F1' },
-                  userType === 'STUDENT' && { backgroundColor: '#8B5CF6' },
                 ]}
               >
                 <Ionicons
@@ -211,38 +210,35 @@ export default function ProfileScreen() {
           <Text style={styles.userEmailText}>{displayEmail}</Text>
           <Text style={styles.userPhoneText}>{displayPhone}</Text>
 
-          {/* Role & Verification Badges: If completed show Role + Verified, if not completed show Not verified */}
+          {/* Verification Badge */}
           {isProfileCompleted ? (
             <View style={styles.badgesRow}>
-              {/* 1. Student Badge (Purple Pill) */}
-              {userType === 'STUDENT' && (
-                <View style={styles.studentPill}>
-                  <Ionicons name="school" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
-                  <Text style={styles.badgePillText}>Student</Text>
+              {isProvider ? (
+                <>
+                  {userType === 'STUDENT_PROVIDER' && (
+                    <View style={styles.studentProviderPill}>
+                      <Ionicons name="school" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
+                      <Text style={styles.badgePillText}>Student Provider</Text>
+                    </View>
+                  )}
+                  {userType === 'EXTERNAL_PROVIDER' && (
+                    <View style={styles.externalProviderPill}>
+                      <Ionicons name="business" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.badgePillText}>External Provider</Text>
+                    </View>
+                  )}
+                  <View style={styles.verifiedPill}>
+                    <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
+                    <Text style={styles.badgePillText}>Verified</Text>
+                  </View>
+                </>
+              ) : (
+                /* Student Buyer: Single Verified green pill matching screenshot */
+                <View style={styles.studentBuyerVerifiedPill}>
+                  <Ionicons name="checkmark-circle" size={14} color="#064E3B" style={{ marginRight: 5 }} />
+                  <Text style={styles.studentBuyerVerifiedText}>Verified</Text>
                 </View>
               )}
-
-              {/* 2. Student Provider Badge (Indigo Pill) */}
-              {userType === 'STUDENT_PROVIDER' && (
-                <View style={styles.studentProviderPill}>
-                  <Ionicons name="school" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
-                  <Text style={styles.badgePillText}>Student Provider</Text>
-                </View>
-              )}
-
-              {/* 3. External Provider Badge (Teal Pill) */}
-              {userType === 'EXTERNAL_PROVIDER' && (
-                <View style={styles.externalProviderPill}>
-                  <Ionicons name="business" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
-                  <Text style={styles.badgePillText}>External Provider</Text>
-                </View>
-              )}
-
-              {/* Verified Badge */}
-              <View style={styles.verifiedPill}>
-                <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
-                <Text style={styles.badgePillText}>Verified</Text>
-              </View>
             </View>
           ) : (
             <View style={styles.notVerifiedPill}>
@@ -252,33 +248,32 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* 3. STATS SUMMARY CARD */}
-        <View style={styles.statsCard}>
-          {/* Listings */}
-          <View style={styles.statCol}>
-            <Text style={styles.statNumber}>{listingsCount}</Text>
-            <Text style={styles.statLabel}>Listings</Text>
-          </View>
-
-          <View style={styles.statDivider} />
-
-          {/* Rentals */}
-          <View style={styles.statCol}>
-            <Text style={styles.statNumber}>{rentalsCount}</Text>
-            <Text style={styles.statLabel}>Rentals</Text>
-          </View>
-
-          <View style={styles.statDivider} />
-
-          {/* Rating */}
-          <View style={styles.statCol}>
-            <View style={styles.ratingNumberRow}>
-              <Text style={styles.statNumber}>{ratingScore}</Text>
-              <Ionicons name="star" size={14} color="#F59E0B" style={{ marginLeft: 3, marginTop: 2 }} />
+        {/* 3. STATS SUMMARY CARD: Only rendered for Providers (omitted for Student Buyer) */}
+        {isProvider && (
+          <View style={styles.statsCard}>
+            <View style={styles.statCol}>
+              <Text style={styles.statNumber}>{listingsCount}</Text>
+              <Text style={styles.statLabel}>Listings</Text>
             </View>
-            <Text style={styles.statLabel}>Rating</Text>
+
+            <View style={styles.statDivider} />
+
+            <View style={styles.statCol}>
+              <Text style={styles.statNumber}>{rentalsCount}</Text>
+              <Text style={styles.statLabel}>Rentals</Text>
+            </View>
+
+            <View style={styles.statDivider} />
+
+            <View style={styles.statCol}>
+              <View style={styles.ratingNumberRow}>
+                <Text style={styles.statNumber}>{ratingScore}</Text>
+                <Ionicons name="star" size={14} color="#F59E0B" style={{ marginLeft: 3, marginTop: 2 }} />
+              </View>
+              <Text style={styles.statLabel}>Rating</Text>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* 4. INCOMPLETE PROFILE WARNING BANNER (Shown if not completed) */}
         {!isProfileCompleted && (
@@ -326,7 +321,7 @@ export default function ProfileScreen() {
 
           <View style={styles.menuDivider} />
 
-          {/* Row 2: My Bookings */}
+          {/* Row 2: My Requests */}
           <TouchableOpacity
             style={styles.menuRow}
             onPress={() => router.push('/myBookings')}
@@ -335,13 +330,37 @@ export default function ProfileScreen() {
             <View style={styles.menuIconBox}>
               <Ionicons name="calendar" size={20} color="#475569" />
             </View>
-            <Text style={styles.menuRowTitle}>My Bookings</Text>
+            <Text style={styles.menuRowTitle}>My Requests</Text>
             <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
           </TouchableOpacity>
 
           <View style={styles.menuDivider} />
 
-          {/* Row 3: Messages */}
+          {/* Row 3: Verification Status */}
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={() => {
+              if (!isProfileCompleted) {
+                router.push('/editProfile');
+              } else {
+                Alert.alert('Verification Status', 'Your account is verified.');
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuIconBox}>
+              <Ionicons name="shield-checkmark" size={20} color="#475569" />
+            </View>
+            <Text style={styles.menuRowTitle}>Verification Status</Text>
+            <Text style={styles.verificationStatusValue}>
+              {isProfileCompleted ? 'Verified' : 'Not verified'}
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </TouchableOpacity>
+
+          <View style={styles.menuDivider} />
+
+          {/* Row 4: Messages */}
           <TouchableOpacity
             style={styles.menuRow}
             onPress={() => router.push('/chat')}
@@ -359,7 +378,7 @@ export default function ProfileScreen() {
 
           <View style={styles.menuDivider} />
 
-          {/* Row 4: Notifications */}
+          {/* Row 5: Notifications */}
           <TouchableOpacity
             style={styles.menuRow}
             onPress={() => Alert.alert('Notifications', 'You have no new notifications.')}
@@ -374,7 +393,7 @@ export default function ProfileScreen() {
 
           <View style={styles.menuDivider} />
 
-          {/* Row 5: Privacy Settings */}
+          {/* Row 6: Privacy Settings */}
           <TouchableOpacity
             style={styles.menuRow}
             onPress={() => Alert.alert('Privacy Settings', 'Manage your privacy and data sharing preferences.')}
@@ -389,7 +408,7 @@ export default function ProfileScreen() {
 
           <View style={styles.menuDivider} />
 
-          {/* Row 6: Help & Support */}
+          {/* Row 7: Help & Support */}
           <TouchableOpacity
             style={styles.menuRow}
             onPress={() =>
@@ -409,7 +428,7 @@ export default function ProfileScreen() {
 
           <View style={styles.menuDivider} />
 
-          {/* Row 7: Dark Mode */}
+          {/* Row 8: Dark Mode */}
           <View style={styles.menuRow}>
             <View style={styles.menuIconBox}>
               <Ionicons name="moon" size={20} color="#475569" />
@@ -427,7 +446,7 @@ export default function ProfileScreen() {
 
           <View style={styles.menuDivider} />
 
-          {/* Row 8: Log Out */}
+          {/* Row 9: Log Out */}
           <TouchableOpacity
             style={styles.menuRow}
             onPress={() => setShowLogoutModal(true)}
@@ -587,13 +606,18 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
   },
-  studentPill: {
+  studentBuyerVerifiedPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#8B5CF6',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    backgroundColor: '#00B074',
+    paddingHorizontal: 16,
+    paddingVertical: 5.5,
     borderRadius: 20,
+  },
+  studentBuyerVerifiedText: {
+    color: '#064E3B',
+    fontSize: 12.5,
+    fontWeight: '700',
   },
   studentProviderPill: {
     flexDirection: 'row',
@@ -772,6 +796,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#0F172A',
     marginLeft: 6,
+  },
+  verificationStatusValue: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+    marginRight: 8,
   },
   messagesBadge: {
     backgroundColor: '#EF4444',
