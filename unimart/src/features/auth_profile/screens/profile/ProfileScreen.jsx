@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Switch,
   ActivityIndicator,
   Modal,
   Alert,
@@ -18,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import authService from '@/services/authService';
 import BottomNav from '@/components/BottomNav';
 
-export default function ProfileScreen({ navigation } = {}) {
+export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -28,6 +29,7 @@ export default function ProfileScreen({ navigation } = {}) {
   const [loggingOut, setLoggingOut] = useState(false);
   const [profileCompletedLocal, setProfileCompletedLocal] = useState(false);
   const [storedBadge, setStoredBadge] = useState(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Refresh profile data when screen comes into focus
   useFocusEffect(
@@ -95,7 +97,7 @@ export default function ProfileScreen({ navigation } = {}) {
     }
   };
 
-  // Derive dynamic user details with sensible fallbacks
+  // Derive dynamic user details with sensible fallbacks matching design
   const displayName =
     user?.userProfile?.fullName ||
     user?.email?.split('@')[0] ||
@@ -130,11 +132,6 @@ export default function ProfileScreen({ navigation } = {}) {
       : 'STUDENT_PROVIDER'
     : 'STUDENT';
 
-  const isVerified =
-    user?.providerProfile?.verificationStatus === 'VERIFIED' ||
-    user?.emailVerified ||
-    false;
-
   const listingsCount = user?.providerProfile?.totalListings || 0;
   const rentalsCount = 3;
   const ratingScore = '4.8';
@@ -162,7 +159,7 @@ export default function ProfileScreen({ navigation } = {}) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 2. USER AVATAR & IDENTITY */}
+        {/* 2. USER AVATAR & IDENTITY SECTION */}
         <View style={styles.profileSection}>
           <View style={styles.avatarWrapper}>
             <Image
@@ -226,7 +223,7 @@ export default function ProfileScreen({ navigation } = {}) {
               {/* Verified Badge */}
               <View style={styles.verifiedPill}>
                 <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
-                <Text style={styles.badgePillText}>{isVerified ? 'Verified' : 'Active'}</Text>
+                <Text style={styles.badgePillText}>Verified</Text>
               </View>
             </View>
           )}
@@ -260,12 +257,12 @@ export default function ProfileScreen({ navigation } = {}) {
           </View>
         </View>
 
-        {/* INCOMPLETE PROFILE WARNING BANNER (Shown above Edit Profile if not completed) */}
+        {/* 4. INCOMPLETE PROFILE WARNING BANNER (Shown if not completed) */}
         {!isProfileCompleted && (
           <View style={styles.incompleteBannerCard}>
             <View style={styles.incompleteBannerTop}>
               <View style={styles.incompleteIconBox}>
-                <Ionicons name="alert-circle" size={22} color="#D97706" />
+                <Ionicons name="alert-circle" size={20} color="#D97706" />
               </View>
               <View style={styles.incompleteTextContainer}>
                 <Text style={styles.incompleteBannerTitle}>Complete Your Profile</Text>
@@ -282,14 +279,14 @@ export default function ProfileScreen({ navigation } = {}) {
               onPress={() => router.push('/editProfile')}
               activeOpacity={0.85}
             >
-              <Ionicons name="create-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Ionicons name="create-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
               <Text style={styles.incompleteActionText}>Complete Profile Now</Text>
-              <Ionicons name="chevron-forward" size={16} color="#FFFFFF" style={{ marginLeft: 4 }} />
+              <Ionicons name="chevron-forward" size={15} color="#FFFFFF" style={{ marginLeft: 4 }} />
             </TouchableOpacity>
           </View>
         )}
 
-        {/* 4. MENU ITEMS CARD */}
+        {/* 5. CONSOLIDATED MENU CARD */}
         <View style={styles.menuCard}>
           {/* Row 1: Edit Profile */}
           <TouchableOpacity
@@ -298,7 +295,7 @@ export default function ProfileScreen({ navigation } = {}) {
             activeOpacity={0.7}
           >
             <View style={styles.menuIconBox}>
-              <Ionicons name="person-outline" size={21} color="#475569" />
+              <Ionicons name="person" size={20} color="#475569" />
             </View>
             <Text style={styles.menuRowTitle}>Edit Profile</Text>
             <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
@@ -313,7 +310,7 @@ export default function ProfileScreen({ navigation } = {}) {
             activeOpacity={0.7}
           >
             <View style={styles.menuIconBox}>
-              <Ionicons name="calendar-outline" size={21} color="#475569" />
+              <Ionicons name="calendar" size={20} color="#475569" />
             </View>
             <Text style={styles.menuRowTitle}>My Bookings</Text>
             <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
@@ -328,7 +325,7 @@ export default function ProfileScreen({ navigation } = {}) {
             activeOpacity={0.7}
           >
             <View style={styles.menuIconBox}>
-              <Ionicons name="chatbubble-outline" size={21} color="#475569" />
+              <Ionicons name="chatbubble" size={20} color="#475569" />
             </View>
             <Text style={styles.menuRowTitle}>Messages</Text>
             <View style={styles.messagesBadge}>
@@ -342,11 +339,11 @@ export default function ProfileScreen({ navigation } = {}) {
           {/* Row 4: Notifications */}
           <TouchableOpacity
             style={styles.menuRow}
-            onPress={() => Alert.alert('Notifications', 'No new notifications.')}
+            onPress={() => Alert.alert('Notifications', 'You have no new notifications.')}
             activeOpacity={0.7}
           >
             <View style={styles.menuIconBox}>
-              <Ionicons name="notifications-outline" size={21} color="#475569" />
+              <Ionicons name="notifications" size={20} color="#475569" />
             </View>
             <Text style={styles.menuRowTitle}>Notifications</Text>
             <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
@@ -357,26 +354,68 @@ export default function ProfileScreen({ navigation } = {}) {
           {/* Row 5: Privacy Settings */}
           <TouchableOpacity
             style={styles.menuRow}
-            onPress={() => Alert.alert('Privacy Settings', 'Privacy settings and controls.')}
+            onPress={() => Alert.alert('Privacy Settings', 'Manage your privacy and data sharing preferences.')}
             activeOpacity={0.7}
           >
             <View style={styles.menuIconBox}>
-              <Ionicons name="lock-closed-outline" size={21} color="#475569" />
+              <Ionicons name="lock-closed" size={20} color="#475569" />
             </View>
             <Text style={styles.menuRowTitle}>Privacy Settings</Text>
             <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
           </TouchableOpacity>
-        </View>
 
-        {/* 5. LOG OUT BUTTON */}
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={() => setShowLogoutModal(true)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="log-out-outline" size={20} color="#EF4444" style={{ marginRight: 8 }} />
-          <Text style={styles.logoutButtonText}>Log Out</Text>
-        </TouchableOpacity>
+          <View style={styles.menuDivider} />
+
+          {/* Row 6: Help & Support */}
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={() =>
+              Alert.alert(
+                'Help & Support',
+                'Need assistance? Contact UniMart Support team at support@unimart.lk'
+              )
+            }
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuIconBox}>
+              <Ionicons name="help-circle" size={20} color="#475569" />
+            </View>
+            <Text style={styles.menuRowTitle}>Help & Support</Text>
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </TouchableOpacity>
+
+          <View style={styles.menuDivider} />
+
+          {/* Row 7: Dark Mode */}
+          <View style={styles.menuRow}>
+            <View style={styles.menuIconBox}>
+              <Ionicons name="moon" size={20} color="#475569" />
+            </View>
+            <Text style={styles.menuRowTitle}>Dark Mode</Text>
+            <Switch
+              value={isDarkMode}
+              onValueChange={setIsDarkMode}
+              trackColor={{ false: '#E2E8F0', true: '#2563EB' }}
+              thumbColor={isDarkMode ? '#FFFFFF' : '#475569'}
+              ios_backgroundColor="#E2E8F0"
+              style={{ transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}
+            />
+          </View>
+
+          <View style={styles.menuDivider} />
+
+          {/* Row 8: Log Out */}
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={() => setShowLogoutModal(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuIconBox}>
+              <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+            </View>
+            <Text style={[styles.menuRowTitle, styles.logoutTitle]}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* 6. LOGOUT CONFIRMATION MODAL */}
@@ -466,12 +505,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: 28,
   },
   profileSection: {
     alignItems: 'center',
     paddingTop: 20,
-    paddingBottom: 18,
+    paddingBottom: 16,
   },
   avatarWrapper: {
     width: 94,
@@ -562,20 +601,10 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '700',
   },
-  studentPillText: {
-    color: '#FFFFFF',
-    fontSize: 12.5,
-    fontWeight: '700',
-  },
-  verifiedPillText: {
-    color: '#FFFFFF',
-    fontSize: 12.5,
-    fontWeight: '700',
-  },
   // Incomplete Banner
   incompleteBannerCard: {
     backgroundColor: '#FFFBEB',
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: '#FDE68A',
@@ -634,12 +663,12 @@ const styles = StyleSheet.create({
   // Stats Card
   statsCard: {
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     flexDirection: 'row',
-    paddingVertical: 18,
+    paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 16,
     shadowColor: '#000000',
@@ -673,26 +702,26 @@ const styles = StyleSheet.create({
     height: 32,
     backgroundColor: '#E2E8F0',
   },
-  // Menu Items Card
+  // Menu Card
   menuCard: {
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     overflow: 'hidden',
-    marginBottom: 16,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 1,
+    marginBottom: 16,
   },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingVertical: 15,
   },
   menuIconBox: {
     width: 28,
@@ -707,42 +736,27 @@ const styles = StyleSheet.create({
   },
   messagesBadge: {
     backgroundColor: '#EF4444',
-    width: 20,
+    minWidth: 20,
     height: 20,
     borderRadius: 10,
+    paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   messagesBadgeText: {
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
   },
+  logoutTitle: {
+    color: '#EF4444',
+  },
   menuDivider: {
     height: 1,
     backgroundColor: '#F1F5F9',
-    marginLeft: 52,
   },
-  // Logout Button
-  logoutButton: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    marginBottom: 20,
-  },
-  logoutButtonText: {
-    color: '#EF4444',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  // Modal Styles
+  // Logout Modal
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
