@@ -246,14 +246,17 @@ export default function StudentDetailsScreen() {
   const router = useRouter();
 
   // User credentials & identity
-  const [fullName, setFullName] = useState('Tharindu Asma');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('22cse0373@ms.sab.ac.lk');
   const [contactNumber, setContactNumber] = useState('+94 77 123 4567');
   const [profileType, setProfileType] = useState('Student buyer');
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
 
-  // Student Evidence File
-  const [studentEvidenceFile, setStudentEvidenceFile] = useState('Student_ID_Proof.pdf');
+  // Student Evidence File: null by default so it's always verified
+  const [studentEvidenceFile, setStudentEvidenceFile] = useState(null);
+
+  // Profile completion status
+  const [isProfileCompleted, setIsProfileCompleted] = useState(false);
 
   // Accordion state: Collapsed by default as in screenshot
   const [isAccordionOpen, setIsAccordionOpen] = useState(false);
@@ -262,6 +265,11 @@ export default function StudentDetailsScreen() {
   const [saving, setSaving] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
+  // Automatically computed university details based on the email
+  const parsedUni = useMemo(() => {
+    return parseUniversityEmail(email);
+  }, [email]);
+
   useEffect(() => {
     loadUserData();
   }, []);
@@ -269,38 +277,80 @@ export default function StudentDetailsScreen() {
   const loadUserData = async () => {
     try {
       const stored = await authService.getStoredUser();
-      if (stored) {
-        if (stored.email) setEmail(stored.email);
-        if (stored.contactNumber) setContactNumber(stored.contactNumber);
+      const userEmail = stored?.email || '22cse0373@ms.sab.ac.lk';
+      setEmail(userEmail);
 
-        if (stored.userProfile?.fullName) setFullName(stored.userProfile.fullName);
-        if (stored.userProfile?.contactNumber) setContactNumber(stored.userProfile.contactNumber);
-        if (stored.userProfile?.profilePictureUrl) setProfilePhotoUrl(stored.userProfile.profilePictureUrl);
+      if (stored?.contactNumber) setContactNumber(stored.contactNumber);
+      if (stored?.userProfile?.contactNumber) setContactNumber(stored.userProfile.contactNumber);
+      if (stored?.userProfile?.profilePictureUrl) setProfilePhotoUrl(stored.userProfile.profilePictureUrl);
 
-        const isProv = stored.role === 'PROVIDER' || Boolean(stored.providerProfile);
-        const isExt =
-          stored.providerProfile?.providerType === 'EXTERNAL_PROVIDER' ||
-          stored.userProfile?.userType === 'EXTERNAL';
+      const parsed = parseUniversityEmail(userEmail);
+      const regNumber = parsed.regNumber;
 
-        if (isProv) {
-          setProfileType(isExt ? 'External provider' : 'Student provider');
-        } else {
-          setProfileType('Student buyer');
-        }
+      // Real full name check
+      const rawName = stored?.userProfile?.fullName?.trim();
+      const hasRealName = Boolean(
+        rawName &&
+        rawName.toUpperCase() !== regNumber.toUpperCase() &&
+        rawName.toLowerCase() !== userEmail.split('@')[0].toLowerCase()
+      );
+
+      // Default to registration number if real full name hasn't been added yet
+      if (hasRealName) {
+        setFullName(rawName);
+      } else {
+        setFullName(regNumber);
+      }
+
+      // Check if student ID document is uploaded
+      const existingId = stored?.userProfile?.studentEvidenceUrl;
+      if (existingId && existingId.trim()) {
+        setStudentEvidenceFile(existingId.trim());
+      } else {
+        setStudentEvidenceFile(null);
+      }
+
+      // Completed check: must have real full name AND uploaded student ID
+      const completed = Boolean(
+        hasRealName &&
+        existingId &&
+        existingId.trim() &&
+        stored?.userProfile?.isCompleted
+      );
+      setIsProfileCompleted(completed);
+
+      const isProv = stored?.role === 'PROVIDER' || Boolean(stored?.providerProfile);
+      const isExt =
+        stored?.providerProfile?.providerType === 'EXTERNAL_PROVIDER' ||
+        stored?.userProfile?.userType === 'EXTERNAL';
+
+      if (isProv) {
+        setProfileType(isExt ? 'External provider' : 'Student provider');
+      } else {
+        setProfileType('Student buyer');
       }
     } catch {
       // Keep sensible initial defaults
     }
   };
 
-  // Automatically computed university details based on the email
-  const parsedUni = useMemo(() => {
-    return parseUniversityEmail(email);
-  }, [email]);
-
   const handleSave = async () => {
-    if (!fullName.trim()) {
-      Alert.alert('Required', 'Please enter your full name.');
+    // 1. Verify Full Name is entered and NOT the default registration number
+    const trimmedName = fullName.trim();
+    if (!trimmedName || trimmedName.toUpperCase() === parsedUni.regNumber.toUpperCase()) {
+      Alert.alert(
+        'Full Name Required',
+        'Please enter your actual full name. The registration number cannot be used as your full name.'
+      );
+      return;
+    }
+
+    // 2. Verify Student ID has been uploaded
+    if (!studentEvidenceFile || !studentEvidenceFile.trim()) {
+      Alert.alert(
+        'Student ID Required',
+        'Please upload your Student ID or enrolment evidence to verify your student profile.'
+      );
       return;
     }
 
@@ -309,27 +359,24 @@ export default function StudentDetailsScreen() {
       return;
     }
 
-    if (!studentEvidenceFile) {
-      Alert.alert('Required', 'Please attach your student ID or enrolment evidence.');
-      return;
-    }
-
     setSaving(true);
 
     try {
       await authService.updateProfile({
-        fullName: fullName.trim(),
+        fullName: trimmedName,
         contactNumber: contactNumber.trim(),
         university: parsedUni.university,
         faculty: parsedUni.faculty,
         department: parsedUni.department,
         intakeBatch: parsedUni.intakeBatch,
         studentRegistrationNumber: parsedUni.regNumber,
-        studentEvidenceUrl: studentEvidenceFile,
+        studentEvidenceUrl: studentEvidenceFile.trim(),
         profilePictureUrl: profilePhotoUrl,
         isCompleted: true,
+        badgeType: 'STUDENT',
       });
 
+      setIsProfileCompleted(true);
       setSaving(false);
       setShowSuccessModal(true);
     } catch (error) {
@@ -433,11 +480,13 @@ export default function StudentDetailsScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Verified Student Badge Pill */}
-            <View style={styles.verifiedStudentPill}>
-              <Ionicons name="checkmark" size={13} color="#059669" style={{ marginRight: 5 }} />
-              <Text style={styles.verifiedStudentPillText}>Verified student</Text>
-            </View>
+            {/* Verified Student Badge Pill: ONLY shown if profile is completed */}
+            {isProfileCompleted && (
+              <View style={styles.verifiedStudentPill}>
+                <Ionicons name="checkmark" size={13} color="#059669" style={{ marginRight: 5 }} />
+                <Text style={styles.verifiedStudentPillText}>Verified student</Text>
+              </View>
+            )}
           </View>
 
           {/* 3. INPUT FORM FIELDS */}
@@ -455,7 +504,9 @@ export default function StudentDetailsScreen() {
                 />
               </View>
               <Text style={styles.fieldHelperText}>
-                Changes to your verified name require review.
+                {fullName.toUpperCase() === parsedUni.regNumber.toUpperCase()
+                  ? 'Default is registration number. Please enter your real full name to verify.'
+                  : 'Changes to your verified name require review.'}
               </Text>
             </View>
 
@@ -507,22 +558,28 @@ export default function StudentDetailsScreen() {
               </Text>
             </View>
 
-            {/* 5. STUDENT ID ATTACHMENT SECTION */}
+            {/* 5. STUDENT ID ATTACHMENT SECTION (Required) */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Student ID or Enrolment Evidence</Text>
+              <Text style={styles.fieldLabel}>
+                Student ID or Enrolment Evidence{' '}
+                {!studentEvidenceFile && <Text style={{ color: '#EF4444' }}>* (Required)</Text>}
+              </Text>
               <TouchableOpacity
-                style={styles.idUploadCard}
+                style={[
+                  styles.idUploadCard,
+                  !studentEvidenceFile && styles.idUploadCardEmpty,
+                ]}
                 onPress={() => {
-                  setStudentEvidenceFile('Student_ID_Proof.pdf');
                   Alert.alert(
                     'Student ID Upload',
-                    'Upload or change your student ID card or official enrolment letter.',
+                    'Choose a PDF document or clear photo of your student ID card or official enrolment letter.',
                     [
                       {
-                        text: 'Choose PDF / Photo',
+                        text: 'Choose PDF / Image',
                         onPress: () => {
-                          setStudentEvidenceFile('Student_ID_Proof.pdf');
-                          Alert.alert('Success', 'Student ID document has been attached.');
+                          const docName = `Student_ID_${parsedUni.regNumber}.pdf`;
+                          setStudentEvidenceFile(docName);
+                          Alert.alert('Document Attached', `${docName} has been attached.`);
                         },
                       },
                       { text: 'Cancel', style: 'cancel' },
@@ -531,17 +588,40 @@ export default function StudentDetailsScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <View style={styles.idIconBox}>
-                  <Ionicons name="card-outline" size={22} color="#2563EB" />
+                <View
+                  style={[
+                    styles.idIconBox,
+                    !studentEvidenceFile && { backgroundColor: '#F1F5F9' },
+                  ]}
+                >
+                  <Ionicons
+                    name={studentEvidenceFile ? 'card-outline' : 'cloud-upload-outline'}
+                    size={22}
+                    color={studentEvidenceFile ? '#2563EB' : '#64748B'}
+                  />
                 </View>
                 <View style={styles.idInfoCol}>
-                  <Text style={styles.idTitle} numberOfLines={1}>
-                    {studentEvidenceFile || 'Attach Student ID card'}
+                  <Text
+                    style={[
+                      styles.idTitle,
+                      !studentEvidenceFile && { color: '#475569', fontWeight: '600' },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {studentEvidenceFile || 'Upload Student ID card'}
                   </Text>
-                  <Text style={styles.idSubtitle}>PDF, PNG or JPG • Verified student ID</Text>
+                  <Text style={styles.idSubtitle}>
+                    {studentEvidenceFile
+                      ? 'PDF, PNG or JPG • Attached & Verified'
+                      : 'PDF, PNG or JPG • Required to verify student badge'}
+                  </Text>
                 </View>
                 <View style={styles.idCheckBadge}>
-                  <Ionicons name="checkmark-circle" size={18} color="#059669" />
+                  {studentEvidenceFile ? (
+                    <Ionicons name="checkmark-circle" size={20} color="#059669" />
+                  ) : (
+                    <Ionicons name="add-circle-outline" size={20} color="#2563EB" />
+                  )}
                 </View>
               </TouchableOpacity>
             </View>
@@ -643,7 +723,7 @@ export default function StudentDetailsScreen() {
             </View>
             <Text style={styles.successModalTitle}>Profile Updated</Text>
             <Text style={styles.successModalMessage}>
-              Your student profile and academic details have been successfully saved and verified.
+              Your student profile and ID evidence have been successfully saved. Your student badge is now active!
             </Text>
 
             <TouchableOpacity
@@ -845,6 +925,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  idUploadCardEmpty: {
+    borderColor: '#93C5FD',
+    backgroundColor: '#F0F9FF',
+    borderStyle: 'dashed',
   },
   idIconBox: {
     width: 36,
