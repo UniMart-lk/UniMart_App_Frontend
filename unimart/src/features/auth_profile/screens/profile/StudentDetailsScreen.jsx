@@ -270,8 +270,10 @@ export default function StudentDetailsScreen() {
   const [saving, setSaving] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // Is this a Student Provider profile?
+  // Profile Type flags
+  const isExternalProvider = profileType === 'External provider' || profileType === 'EXTERNAL_PROVIDER';
   const isStudentProvider = profileType === 'Student provider' || profileType === 'STUDENT_PROVIDER';
+  const isProvider = isExternalProvider || isStudentProvider;
 
   // Automatically computed university details based on the email
   const parsedUni = useMemo(() => {
@@ -287,20 +289,36 @@ export default function StudentDetailsScreen() {
       const stored = await authService.getStoredUser();
       const storedBadge = await authService.getStoredBadgeType();
 
-      const isProv =
-        storedBadge === 'STUDENT_PROVIDER' ||
+      const isExt =
         storedBadge === 'EXTERNAL_PROVIDER' ||
-        stored?.role === 'PROVIDER' ||
-        Boolean(stored?.providerProfile);
+        stored?.providerProfile?.providerType === 'EXTERNAL_PROVIDER' ||
+        stored?.providerProfile?.providerType === 'External Provider' ||
+        stored?.userProfile?.userType === 'EXTERNAL' ||
+        (stored?.role === 'PROVIDER' && !stored?.email?.includes('.ac.lk') && !stored?.email?.includes('student'));
 
-      const userEmail = stored?.email || (isProv ? 'amaya@student.demo.example' : '22cse0373@ms.sab.ac.lk');
+      const isStudProv =
+        storedBadge === 'STUDENT_PROVIDER' ||
+        stored?.providerProfile?.providerType === 'STUDENT_PROVIDER' ||
+        stored?.providerProfile?.providerType === 'Student Provider';
+
+      const isProv = isExt || isStudProv || stored?.role === 'PROVIDER' || Boolean(stored?.providerProfile);
+
+      const userEmail =
+        stored?.email ||
+        (isExt
+          ? 'nimal@provider.demo.example'
+          : isProv
+          ? 'amaya@student.demo.example'
+          : '22cse0373@ms.sab.ac.lk');
       setEmail(userEmail);
 
       const parsed = parseUniversityEmail(userEmail);
       const regNumber = parsed.regNumber;
 
       if (stored?.contactNumber) setContactNumber(stored.contactNumber);
-      if (stored?.userProfile?.contactNumber) setContactNumber(stored.userProfile.contactNumber);
+      else if (stored?.userProfile?.contactNumber) setContactNumber(stored.userProfile.contactNumber);
+      else setContactNumber(isExt ? '+94 77 345 6789' : '+94 77 234 5678');
+
       if (stored?.userProfile?.profilePictureUrl) setProfilePhotoUrl(stored.userProfile.profilePictureUrl);
 
       // Real full name check
@@ -311,14 +329,14 @@ export default function StudentDetailsScreen() {
         rawName.toLowerCase() !== userEmail.split('@')[0].toLowerCase()
       );
 
-      // Default to registration number if real full name hasn't been added yet
+      // Default name: if real full name hasn't been added yet
       if (hasRealName) {
         setFullName(rawName);
       } else {
-        setFullName(isProv ? "Amaya Perera" : regNumber);
+        setFullName(isExt ? "Nimal Fernando" : isProv ? "Amaya Perera" : regNumber);
       }
 
-      // Check if student ID document is uploaded
+      // Check if student ID document is uploaded (for students)
       const existingId = stored?.userProfile?.studentEvidenceUrl || stored?.providerProfile?.verificationDocUrl;
       if (existingId && existingId.trim()) {
         setStudentEvidenceFile(existingId.trim());
@@ -329,51 +347,80 @@ export default function StudentDetailsScreen() {
       // Provider details
       if (stored?.providerProfile?.displayName) {
         setProviderDisplayName(stored.providerProfile.displayName);
-      }
-      if (stored?.providerProfile?.serviceArea) {
-        setServiceArea(stored.providerProfile.serviceArea);
-      }
-      if (stored?.providerProfile?.description) {
-        setAboutService(stored.providerProfile.description);
+      } else {
+        setProviderDisplayName(isExt ? "Nimal's Rental Corner" : "Amaya's Campus Essentials");
       }
 
-      if (isProv) {
+      if (stored?.providerProfile?.serviceArea) {
+        setServiceArea(stored.providerProfile.serviceArea);
+      } else {
+        setServiceArea(isExt ? "Balangoda & Belihuloya" : "Belihuloya");
+      }
+
+      if (stored?.providerProfile?.description) {
+        setAboutService(stored.providerProfile.description);
+      } else {
+        setAboutService(
+          isExt
+            ? "Cameras, equipment, and everyday rentals for students."
+            : "Study essentials and affordable rentals for students."
+        );
+      }
+
+      if (isExt) {
+        setProfileType('External provider');
+      } else if (isProv) {
         setProfileType('Student provider');
       } else {
         setProfileType('Student buyer');
       }
 
-      // Completed check: must have real full name AND uploaded student ID
-      const completed = Boolean(
-        hasRealName &&
-        existingId &&
-        existingId.trim() &&
-        stored?.userProfile?.isCompleted
-      );
-      setIsProfileCompleted(completed);
+      // Completed check:
+      // For external providers: full name and provider details completed (isCompleted or storedBadge)
+      // For students: must have real full name AND uploaded student ID
+      if (isExt) {
+        const completed = Boolean(
+          hasRealName &&
+          (stored?.userProfile?.isCompleted || storedBadge === 'EXTERNAL_PROVIDER')
+        );
+        setIsProfileCompleted(completed);
+      } else {
+        const completed = Boolean(
+          hasRealName &&
+          existingId &&
+          existingId.trim() &&
+          stored?.userProfile?.isCompleted
+        );
+        setIsProfileCompleted(completed);
+      }
     } catch {
       // Keep sensible initial defaults
     }
   };
 
   const handleSave = async () => {
-    // 1. Verify Full Name is entered and NOT the default registration number
+    // 1. Verify Full Name is entered
     const trimmedName = fullName.trim();
-    if (!trimmedName || trimmedName.toUpperCase() === parsedUni.regNumber.toUpperCase()) {
+    if (
+      !trimmedName ||
+      (!isExternalProvider && trimmedName.toUpperCase() === parsedUni.regNumber.toUpperCase())
+    ) {
       Alert.alert(
         'Full Name Required',
-        'Please enter your actual full name. The registration number cannot be used as your full name.'
+        'Please enter your actual full name.'
       );
       return;
     }
 
-    // 2. Verify Student ID has been uploaded
-    if (!studentEvidenceFile || !studentEvidenceFile.trim()) {
-      Alert.alert(
-        'Student ID Required',
-        'Please upload your Student ID or enrolment evidence to verify your student profile.'
-      );
-      return;
+    // 2. Verify Student ID has been uploaded (ONLY for student profiles)
+    if (!isExternalProvider) {
+      if (!studentEvidenceFile || !studentEvidenceFile.trim()) {
+        Alert.alert(
+          'Student ID Required',
+          'Please upload your Student ID or enrolment evidence to verify your student profile.'
+        );
+        return;
+      }
     }
 
     if (!contactNumber.trim()) {
@@ -381,8 +428,8 @@ export default function StudentDetailsScreen() {
       return;
     }
 
-    // 3. Provider validations
-    if (isStudentProvider) {
+    // 3. Provider validations (both Student Provider and External Provider)
+    if (isProvider) {
       if (!providerDisplayName.trim()) {
         Alert.alert('Required', 'Please enter your Provider Display Name.');
         return;
@@ -399,20 +446,20 @@ export default function StudentDetailsScreen() {
       await authService.updateProfile({
         fullName: trimmedName,
         contactNumber: contactNumber.trim(),
-        providerDisplayName: isStudentProvider ? providerDisplayName.trim() : null,
-        serviceArea: isStudentProvider ? serviceArea.trim() : null,
-        description: isStudentProvider ? aboutService.trim() : null,
-        university: parsedUni.university,
-        faculty: parsedUni.faculty,
-        department: parsedUni.department,
-        intakeBatch: parsedUni.intakeBatch,
-        studentRegistrationNumber: parsedUni.regNumber,
-        studentEvidenceUrl: studentEvidenceFile.trim(),
+        providerDisplayName: isProvider ? providerDisplayName.trim() : null,
+        serviceArea: isProvider ? serviceArea.trim() : null,
+        description: isProvider ? aboutService.trim() : null,
+        university: isExternalProvider ? null : parsedUni.university,
+        faculty: isExternalProvider ? null : parsedUni.faculty,
+        department: isExternalProvider ? null : parsedUni.department,
+        intakeBatch: isExternalProvider ? null : parsedUni.intakeBatch,
+        studentRegistrationNumber: isExternalProvider ? null : parsedUni.regNumber,
+        studentEvidenceUrl: isExternalProvider ? null : (studentEvidenceFile ? studentEvidenceFile.trim() : null),
         profilePictureUrl: profilePhotoUrl,
-        isProvider: isStudentProvider,
-        providerType: isStudentProvider ? 'STUDENT_PROVIDER' : 'STUDENT',
+        isProvider: isProvider,
+        providerType: isExternalProvider ? 'EXTERNAL_PROVIDER' : (isStudentProvider ? 'STUDENT_PROVIDER' : 'STUDENT'),
         isCompleted: true,
-        badgeType: isStudentProvider ? 'STUDENT_PROVIDER' : 'STUDENT',
+        badgeType: isExternalProvider ? 'EXTERNAL_PROVIDER' : (isStudentProvider ? 'STUDENT_PROVIDER' : 'STUDENT'),
       });
 
       setIsProfileCompleted(true);
@@ -519,11 +566,13 @@ export default function StudentDetailsScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Verified Student Badge Pill: ONLY shown if profile is completed */}
+            {/* Verified Student / Provider Badge Pill: ONLY shown if profile is completed */}
             {isProfileCompleted && (
               <View style={styles.verifiedStudentPill}>
                 <Ionicons name="checkmark" size={13} color="#059669" style={{ marginRight: 5 }} />
-                <Text style={styles.verifiedStudentPillText}>Verified student</Text>
+                <Text style={styles.verifiedStudentPillText}>
+                  {isExternalProvider ? 'Verified external provider' : 'Verified student'}
+                </Text>
               </View>
             )}
           </View>
@@ -543,7 +592,7 @@ export default function StudentDetailsScreen() {
                 />
               </View>
               <Text style={styles.fieldHelperText}>
-                {fullName.toUpperCase() === parsedUni.regNumber.toUpperCase()
+                {!isExternalProvider && fullName.toUpperCase() === parsedUni.regNumber.toUpperCase()
                   ? 'Default is registration number. Please enter your real full name to verify.'
                   : 'Changes to your verified name require review.'}
               </Text>
@@ -584,8 +633,8 @@ export default function StudentDetailsScreen() {
               </View>
             </View>
 
-            {/* 4. PROVIDER INFORMATION SECTION (Shown for Student Provider) */}
-            {isStudentProvider && (
+            {/* 4. PROVIDER INFORMATION SECTION (Shown for Student Provider and External Provider) */}
+            {isProvider && (
               <View style={styles.providerSectionWrapper}>
                 <Text style={styles.sectionHeaderTitle}>PROVIDER INFORMATION</Text>
 
@@ -597,7 +646,7 @@ export default function StudentDetailsScreen() {
                       style={styles.textInput}
                       value={providerDisplayName}
                       onChangeText={setProviderDisplayName}
-                      placeholder="e.g. Amaya's Campus Essentials"
+                      placeholder={isExternalProvider ? "e.g. Nimal's Rental Corner" : "e.g. Amaya's Campus Essentials"}
                       placeholderTextColor="#94A3B8"
                     />
                   </View>
@@ -611,7 +660,7 @@ export default function StudentDetailsScreen() {
                       style={styles.textInput}
                       value={serviceArea}
                       onChangeText={setServiceArea}
-                      placeholder="e.g. Belihuloya"
+                      placeholder={isExternalProvider ? "e.g. Balangoda & Belihuloya" : "e.g. Belihuloya"}
                       placeholderTextColor="#94A3B8"
                     />
                   </View>
@@ -628,7 +677,11 @@ export default function StudentDetailsScreen() {
                       style={styles.textAreaInput}
                       value={aboutService}
                       onChangeText={setAboutService}
-                      placeholder="Study essentials and affordable rentals for students."
+                      placeholder={
+                        isExternalProvider
+                          ? "Cameras, equipment, and everyday rentals for students."
+                          : "Study essentials and affordable rentals for students."
+                      }
                       placeholderTextColor="#94A3B8"
                       multiline
                       numberOfLines={3}
@@ -651,141 +704,145 @@ export default function StudentDetailsScreen() {
                 style={styles.infoCalloutIcon}
               />
               <Text style={styles.infoCalloutText}>
-                {isStudentProvider
+                {isProvider
                   ? 'Your provider type is linked to your verified identity and cannot be changed here.'
                   : 'Student buyers must keep a student profile. Your account type cannot be changed here.'}
               </Text>
             </View>
 
-            {/* 6. STUDENT ID ATTACHMENT SECTION (Required) */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>
-                Student ID or Enrolment Evidence{' '}
-                {!studentEvidenceFile && <Text style={{ color: '#EF4444' }}>* (Required)</Text>}
-              </Text>
-              <TouchableOpacity
-                style={[
-                  styles.idUploadCard,
-                  !studentEvidenceFile && styles.idUploadCardEmpty,
-                ]}
-                onPress={() => {
-                  Alert.alert(
-                    'Student ID Upload',
-                    'Choose a PDF document or clear photo of your student ID card or official enrolment letter.',
-                    [
-                      {
-                        text: 'Choose PDF / Image',
-                        onPress: () => {
-                          const docName = `Student_ID_${parsedUni.regNumber}.pdf`;
-                          setStudentEvidenceFile(docName);
-                          Alert.alert('Document Attached', `${docName} has been attached.`);
-                        },
-                      },
-                      { text: 'Cancel', style: 'cancel' },
-                    ]
-                  );
-                }}
-                activeOpacity={0.8}
-              >
-                <View
+            {/* 6. STUDENT ID ATTACHMENT SECTION (Required for Students, omitted for External Providers) */}
+            {!isExternalProvider && (
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>
+                  Student ID or Enrolment Evidence{' '}
+                  {!studentEvidenceFile && <Text style={{ color: '#EF4444' }}>* (Required)</Text>}
+                </Text>
+                <TouchableOpacity
                   style={[
-                    styles.idIconBox,
-                    !studentEvidenceFile && { backgroundColor: '#F1F5F9' },
+                    styles.idUploadCard,
+                    !studentEvidenceFile && styles.idUploadCardEmpty,
                   ]}
+                  onPress={() => {
+                    Alert.alert(
+                      'Student ID Upload',
+                      'Choose a PDF document or clear photo of your student ID card or official enrolment letter.',
+                      [
+                        {
+                          text: 'Choose PDF / Image',
+                          onPress: () => {
+                            const docName = `Student_ID_${parsedUni.regNumber}.pdf`;
+                            setStudentEvidenceFile(docName);
+                            Alert.alert('Document Attached', `${docName} has been attached.`);
+                          },
+                        },
+                        { text: 'Cancel', style: 'cancel' },
+                      ]
+                    );
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View
+                    style={[
+                      styles.idIconBox,
+                      !studentEvidenceFile && { backgroundColor: '#F1F5F9' },
+                    ]}
+                  >
+                    <Ionicons
+                      name={studentEvidenceFile ? 'card-outline' : 'cloud-upload-outline'}
+                      size={22}
+                      color={studentEvidenceFile ? '#2563EB' : '#64748B'}
+                    />
+                  </View>
+                  <View style={styles.idInfoCol}>
+                    <Text
+                      style={[
+                        styles.idTitle,
+                        !studentEvidenceFile && { color: '#475569', fontWeight: '600' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {studentEvidenceFile || 'Upload Student ID card'}
+                    </Text>
+                    <Text style={styles.idSubtitle}>
+                      {studentEvidenceFile
+                        ? 'PDF, PNG or JPG • Attached & Verified'
+                        : 'PDF, PNG or JPG • Required to verify student badge'}
+                    </Text>
+                  </View>
+                  <View style={styles.idCheckBadge}>
+                    {studentEvidenceFile ? (
+                      <Ionicons name="checkmark-circle" size={20} color="#059669" />
+                    ) : (
+                      <Ionicons name="add-circle-outline" size={20} color="#2563EB" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* 7. COLLAPSIBLE ACCORDION: University details · Protected (Omitted for External Providers) */}
+            {!isExternalProvider && (
+              <View style={styles.accordionContainer}>
+                <TouchableOpacity
+                  style={styles.accordionHeader}
+                  onPress={() => setIsAccordionOpen(!isAccordionOpen)}
+                  activeOpacity={0.7}
                 >
                   <Ionicons
-                    name={studentEvidenceFile ? 'card-outline' : 'cloud-upload-outline'}
-                    size={22}
-                    color={studentEvidenceFile ? '#2563EB' : '#64748B'}
+                    name={isAccordionOpen ? 'caret-down' : 'caret-forward'}
+                    size={14}
+                    color="#64748B"
+                    style={{ marginRight: 6 }}
                   />
-                </View>
-                <View style={styles.idInfoCol}>
-                  <Text
-                    style={[
-                      styles.idTitle,
-                      !studentEvidenceFile && { color: '#475569', fontWeight: '600' },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {studentEvidenceFile || 'Upload Student ID card'}
-                  </Text>
-                  <Text style={styles.idSubtitle}>
-                    {studentEvidenceFile
-                      ? 'PDF, PNG or JPG • Attached & Verified'
-                      : 'PDF, PNG or JPG • Required to verify student badge'}
-                  </Text>
-                </View>
-                <View style={styles.idCheckBadge}>
-                  {studentEvidenceFile ? (
-                    <Ionicons name="checkmark-circle" size={20} color="#059669" />
-                  ) : (
-                    <Ionicons name="add-circle-outline" size={20} color="#2563EB" />
-                  )}
-                </View>
-              </TouchableOpacity>
-            </View>
+                  <Text style={styles.accordionTitle}>University details · Protected</Text>
+                </TouchableOpacity>
 
-            {/* 7. COLLAPSIBLE ACCORDION: University details · Protected */}
-            <View style={styles.accordionContainer}>
-              <TouchableOpacity
-                style={styles.accordionHeader}
-                onPress={() => setIsAccordionOpen(!isAccordionOpen)}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={isAccordionOpen ? 'caret-down' : 'caret-forward'}
-                  size={14}
-                  color="#64748B"
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={styles.accordionTitle}>University details · Protected</Text>
-              </TouchableOpacity>
+                {/* Expanded details automatically filled from email */}
+                {isAccordionOpen && (
+                  <View style={styles.accordionContent}>
+                    {/* University */}
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>University</Text>
+                      <Text style={styles.detailValue}>{parsedUni.university}</Text>
+                    </View>
 
-              {/* Expanded details automatically filled from email */}
-              {isAccordionOpen && (
-                <View style={styles.accordionContent}>
-                  {/* University */}
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>University</Text>
-                    <Text style={styles.detailValue}>{parsedUni.university}</Text>
+                    {/* Faculty */}
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Faculty</Text>
+                      <Text style={styles.detailValue}>{parsedUni.faculty}</Text>
+                    </View>
+
+                    {/* Department / Programme */}
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Department / Programme</Text>
+                      <Text style={styles.detailValue}>{parsedUni.department}</Text>
+                    </View>
+
+                    {/* Intake / Batch */}
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Intake / Batch</Text>
+                      <Text style={styles.detailValue}>
+                        {parsedUni.intakeBatch} ({parsedUni.intakeFull})
+                      </Text>
+                    </View>
+
+                    {/* Student registration number */}
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Student registration number</Text>
+                      <Text style={styles.detailValue}>{parsedUni.regNumber}</Text>
+                    </View>
+
+                    {/* Need a correction */}
+                    <View style={styles.correctionBox}>
+                      <Text style={styles.correctionTitle}>Need a correction?</Text>
+                      <Text style={styles.correctionMessage}>
+                        Identity changes need a new verification review.
+                      </Text>
+                    </View>
                   </View>
-
-                  {/* Faculty */}
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Faculty</Text>
-                    <Text style={styles.detailValue}>{parsedUni.faculty}</Text>
-                  </View>
-
-                  {/* Department / Programme */}
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Department / Programme</Text>
-                    <Text style={styles.detailValue}>{parsedUni.department}</Text>
-                  </View>
-
-                  {/* Intake / Batch */}
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Intake / Batch</Text>
-                    <Text style={styles.detailValue}>
-                      {parsedUni.intakeBatch} ({parsedUni.intakeFull})
-                    </Text>
-                  </View>
-
-                  {/* Student registration number */}
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Student registration number</Text>
-                    <Text style={styles.detailValue}>{parsedUni.regNumber}</Text>
-                  </View>
-
-                  {/* Need a correction */}
-                  <View style={styles.correctionBox}>
-                    <Text style={styles.correctionTitle}>Need a correction?</Text>
-                    <Text style={styles.correctionMessage}>
-                      Identity changes need a new verification review.
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
+                )}
+              </View>
+            )}
 
             {/* 8. SAVE CHANGES BUTTON */}
             <TouchableOpacity
