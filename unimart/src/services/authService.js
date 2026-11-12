@@ -163,6 +163,7 @@ export const authService = {
         university: profileData.university !== undefined ? profileData.university : currentUser.userProfile?.university,
         faculty: profileData.faculty !== undefined ? profileData.faculty : currentUser.userProfile?.faculty,
         universityIdNumber: profileData.studentRegistrationNumber || currentUser.userProfile?.universityIdNumber,
+        studentEvidenceUrl: profileData.studentEvidenceUrl || currentUser.userProfile?.studentEvidenceUrl,
         nicNumber: profileData.nicNumber || currentUser.userProfile?.nicNumber,
         profilePictureUrl: profileData.profilePictureUrl || currentUser.userProfile?.profilePictureUrl,
         isCompleted: true,
