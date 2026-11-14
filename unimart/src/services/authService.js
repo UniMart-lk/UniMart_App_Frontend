@@ -67,6 +67,59 @@ export const authService = {
   },
 
   /**
+   * Send a 6-digit registration verification OTP to email
+   * @param {string} email
+   */
+  async sendVerificationOtp(email) {
+    return await apiRequest('/auth/send-verification-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email: email?.trim() }),
+    });
+  },
+
+  /**
+   * Request a 6-digit password reset verification code via email
+   * @param {string} email
+   */
+  async forgotPassword(email) {
+    return await apiRequest('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email: email?.trim() }),
+    });
+  },
+
+  /**
+   * Verify the 6-digit password reset OTP code
+   * @param {string} email
+   * @param {string} code
+   */
+  async verifyResetCode(email, code) {
+    return await apiRequest('/auth/verify-reset-code', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: email?.trim(),
+        code: code?.toString().trim(),
+      }),
+    });
+  },
+
+  /**
+   * Reset password using verified OTP session
+   * @param {{ email: string, newPassword: string, resetToken?: string, code?: string }} data
+   */
+  async resetPassword({ email, newPassword, resetToken, code }) {
+    return await apiRequest('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: email?.trim(),
+        newPassword,
+        resetToken,
+        code,
+      }),
+    });
+  },
+
+  /**
    * Register a new user and persist credentials
    * @param {object} registrationData
    * @returns {Promise<{ token: string, user: object }>}
