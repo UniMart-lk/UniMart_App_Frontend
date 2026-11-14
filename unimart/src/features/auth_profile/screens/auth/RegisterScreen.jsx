@@ -38,7 +38,7 @@ export default function RegisterScreen({ navigation } = {}) {
   const [agreeTerms, setAgreeTerms] = useState(false);
 
   // OTP Verification Form State
-  const [otpCode, setOtpCode] = useState('123456');
+  const [otpCode, setOtpCode] = useState('');
 
   // Provider Type: 'Student Provider' | 'External Provider'
   const [providerType, setProviderType] = useState('Student Provider');
@@ -251,10 +251,18 @@ export default function RegisterScreen({ navigation } = {}) {
         setErrorMessage('');
         setStep(2);
       } else {
-        // Buyer & renter account: Proceed to OTP email verification
+        // Buyer & renter account: Send real OTP email and proceed to OTP verification
         setErrorMessage('');
-        setOtpCode('123456');
-        setStep('otp');
+        setLoading(true);
+        try {
+          await authService.sendVerificationOtp(email.trim());
+          setOtpCode('');
+          setStep('otp');
+        } catch (error) {
+          setErrorMessage(error.message || 'Failed to send verification code to your email.');
+        } finally {
+          setLoading(false);
+        }
       }
     } else if (step === 2) {
       if (!validateVerificationForm()) return;
@@ -319,6 +327,7 @@ export default function RegisterScreen({ navigation } = {}) {
           password: password,
           contactNumber: contactNumber.trim(),
           role: isProvider ? 'PROVIDER' : 'USER',
+          otpCode: trimmedOtp,
           providerType: isProvider
             ? isStudentProvider
               ? 'STUDENT_PROVIDER'
@@ -362,12 +371,21 @@ export default function RegisterScreen({ navigation } = {}) {
     }
   };
 
-  const handleResendCode = () => {
-    setOtpCode('123456');
-    Alert.alert(
-      'Verification Code Resent',
-      `A new demo code (123456) was sent to ${email.trim() || 'your university email'}.`
-    );
+  const handleResendCode = async () => {
+    setErrorMessage('');
+    setLoading(true);
+    try {
+      await authService.sendVerificationOtp(email.trim());
+      setOtpCode('');
+      Alert.alert(
+        'Verification Code Resent',
+        `A new 6-digit verification code has been sent to ${email.trim()}.`
+      );
+    } catch (error) {
+      setErrorMessage(error.message || 'Failed to resend verification code.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -841,11 +859,12 @@ export default function RegisterScreen({ navigation } = {}) {
                 />
               </View>
 
-              {/* Demo Notice Box */}
+              {/* Email Notice Box */}
               <View style={styles.otpNoticeBox}>
                 <Text style={styles.otpNoticeText}>
-                  The demo code is already filled:{' '}
-                  <Text style={{ fontWeight: '700', color: '#0F172A' }}>123456</Text>. No message is sent.
+                  We have sent a 6-digit verification code to{' '}
+                  <Text style={{ fontWeight: '700', color: '#0F172A' }}>{email.trim() || 'your email'}</Text>.
+                  Please check your inbox and enter it above.
                 </Text>
               </View>
 
