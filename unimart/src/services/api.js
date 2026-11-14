@@ -1,14 +1,16 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { getToken } from './storage';
 
 /**
- * Default backend configuration as specified:
- * - Physical device (Expo Go): http://172.20.10.3:5000/api
- * - Android Emulator: http://10.0.2.2:5000/api
- * - iOS Simulator / Web: http://localhost:5000/api
+ * Backend Port
+ */
+export const BACKEND_PORT = '5000';
+
+/**
+ * Fallback IP in case auto-detection cannot resolve the host
  */
 export const BACKEND_IP = '192.168.1.111';
-export const BACKEND_PORT = '5000';
 
 let customBaseUrl = null;
 
@@ -16,16 +18,70 @@ export function setCustomBaseUrl(url) {
   customBaseUrl = url;
 }
 
+/**
+ * Automatically detects the host machine's IP address from Expo Metro bundler.
+ * In development / Expo Go, the phone connects to Metro at <PC_IP>:8081.
+ * Extracting that IP ensures EVERY team member automatically connects to their own
+ * backend without hardcoding or conflicting with each other's networks.
+ */
+export function getHostIp() {
+  // 1. Explicit environment variable override if provided
+  if (process.env.EXPO_PUBLIC_BACKEND_IP) {
+    return process.env.EXPO_PUBLIC_BACKEND_IP;
+  }
+
+  // 2. Modern Expo Config (hostUri e.g. "172.20.10.3:8081" or "192.168.1.111:8081")
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    Constants.manifest2?.extra?.expoGo?.debuggerHost ||
+    Constants.manifest2?.extra?.expoClient?.hostUri ||
+    Constants.manifest?.debuggerHost;
+
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+      return ip;
+    }
+  }
+
+  // 3. Expo Linking URI / Experience URL fallback (e.g. "exp://172.20.10.3:8081")
+  const linkingUri = Constants.linkingUri || Constants.experienceUrl;
+  if (linkingUri && linkingUri.includes('://')) {
+    const raw = linkingUri.split('://')[1];
+    const ip = raw?.split(':')[0]?.split('/')[0];
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+      return ip;
+    }
+  }
+
+  return null;
+}
+
 export function getBaseUrl() {
   if (customBaseUrl) {
     return customBaseUrl;
+  }
+
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
   }
 
   if (Platform.OS === 'web') {
     return `http://localhost:${BACKEND_PORT}/api`;
   }
 
-  // Use the physical device IP provided (works for Expo Go on LAN)
+  // Auto-detect the host machine's IP (works dynamically for every teammate!)
+  const detectedIp = getHostIp();
+  if (detectedIp) {
+    return `http://${detectedIp}:${BACKEND_PORT}/api`;
+  }
+
+  if (Platform.OS === 'android') {
+    // Android emulator alias for host machine
+    return `http://10.0.2.2:${BACKEND_PORT}/api`;
+  }
+
+  // Fallback
   return `http://${BACKEND_IP}:${BACKEND_PORT}/api`;
 }
 
@@ -37,6 +93,8 @@ export function getBaseUrl() {
 export async function apiRequest(endpoint, options = {}) {
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+
+  console.log(`[API] ${options.method || 'GET'} ${url}`);
 
   const headers = {
     'Content-Type': 'application/json',
@@ -86,15 +144,27 @@ export async function apiRequest(endpoint, options = {}) {
 
     return data;
   } catch (error) {
-    if (error.name === 'AbortError') {
-      const timeoutError = new Error('Connection timed out. Please verify your backend server is running and reachable.');
+    if (
+      error.name === 'AbortError' ||
+      error.message?.includes('canceled') ||
+      error.message?.includes('cancelled')
+    ) {
+      const timeoutError = new Error(
+        `Connection timed out reaching backend at ${baseUrl}. Ensure your backend server is running and reachable.`
+      );
       timeoutError.status = 408;
       throw timeoutError;
     }
 
-    // Network / connection refused errors                      
-    if (error.message && error.message.includes('Network request failed')) {
-      const networkError = new Error(`Cannot connect to backend at ${baseUrl}. Ensure your backend server is running.`);
+    // Network / connection refused errors
+    if (
+      error.message &&
+      (error.message.includes('Network request failed') ||
+        error.message.includes('fetch failed'))
+    ) {
+      const networkError = new Error(
+        `Cannot connect to backend at ${baseUrl}. Ensure your backend server is running.`
+      );
       networkError.status = 0;
       throw networkError;
     }

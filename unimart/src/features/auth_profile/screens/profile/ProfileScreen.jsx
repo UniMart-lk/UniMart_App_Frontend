@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Switch,
   ActivityIndicator,
   Modal,
   Alert,
@@ -17,8 +18,9 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import authService from '@/services/authService';
 import BottomNav from '@/components/BottomNav';
+import { parseUniversityEmail } from './StudentDetailsScreen';
 
-export default function ProfileScreen({ navigation } = {}) {
+export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -26,10 +28,14 @@ export default function ProfileScreen({ navigation } = {}) {
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [profileCompletedLocal, setProfileCompletedLocal] = useState(false);
+  const [storedBadge, setStoredBadge] = useState(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // Hardware back press on Profile returns to marketplace, never logs out
+  // Refresh profile data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      loadUserData();
       const onBackPress = () => {
         router.replace('/marketplace');
         return true;
@@ -45,16 +51,28 @@ export default function ProfileScreen({ navigation } = {}) {
 
   const loadUserData = async () => {
     try {
-      // 1. Try locally cached user
+      // 1. Check local device completion flag & stored badge
+      const comp = await authService.isProfileCompleted();
+      const badge = await authService.getStoredBadgeType();
+      if (comp) setProfileCompletedLocal(true);
+      if (badge) setStoredBadge(badge);
+
+      // 2. Try locally cached user
       const stored = await authService.getStoredUser();
       if (stored) {
         setUser(stored);
+        if (stored?.userProfile?.isCompleted) {
+          setProfileCompletedLocal(true);
+        }
       }
 
-      // 2. Fetch fresh user profile from backend API
+      // 3. Fetch fresh user profile from backend API
       const fresh = await authService.getCurrentUser();
       if (fresh) {
         setUser(fresh);
+        if (fresh?.userProfile?.isCompleted) {
+          setProfileCompletedLocal(true);
+        }
       }
     } catch (err) {
       console.log('Error loading profile info:', err.message);
@@ -67,6 +85,8 @@ export default function ProfileScreen({ navigation } = {}) {
     setLoggingOut(true);
     try {
       await authService.logout();
+      setProfileCompletedLocal(false);
+      setStoredBadge(null);
       setShowLogoutModal(false);
       router.replace('/login');
     } catch (error) {
@@ -78,27 +98,79 @@ export default function ProfileScreen({ navigation } = {}) {
     }
   };
 
-  // Derive dynamic user details with sensible fallbacks
-  const displayName =
-    user?.userProfile?.fullName ||
-    user?.email?.split('@')[0] ||
-    'Tharindu Asma';
+  // User Type: STUDENT, STUDENT_PROVIDER, or EXTERNAL_PROVIDER
+  const isExternal =
+    storedBadge === 'EXTERNAL_PROVIDER' ||
+    user?.providerProfile?.providerType === 'EXTERNAL_PROVIDER' ||
+    user?.providerProfile?.providerType === 'External Provider' ||
+    user?.userProfile?.userType === 'EXTERNAL' ||
+    (user?.role === 'PROVIDER' && !user?.email?.includes('.ac.lk') && !user?.email?.includes('student'));
 
-  const displayEmail = user?.email || 'tharindu@university.lk';
+  const isProvider =
+    isExternal ||
+    storedBadge === 'STUDENT_PROVIDER' ||
+    user?.role === 'PROVIDER' ||
+    Boolean(user?.providerProfile);
+
+  const userType = storedBadge
+    ? storedBadge
+    : isProvider
+    ? isExternal
+      ? 'EXTERNAL_PROVIDER'
+      : 'STUDENT_PROVIDER'
+    : 'STUDENT';
+
+  const displayEmail =
+    user?.email ||
+    (isExternal
+      ? 'nimal@provider.demo.example'
+      : isProvider
+      ? 'amaya@student.demo.example'
+      : '22cse0373@ms.sab.ac.lk');
+
   const displayPhone =
     user?.contactNumber ||
     user?.userProfile?.contactNumber ||
-    '+94 77 123 4567';
+    (isExternal ? '+94 77 345 6789' : '+94 77 123 4567');
 
-  const isStudent =
-    user?.userProfile?.userType === 'STUDENT' ||
-    user?.providerProfile?.providerType === 'STUDENT_PROVIDER' ||
-    true; // Default to Student badge as shown in mockup
+  // Automatically parse email to derive registration number (e.g. 22CSE0373)
+  const parsedUni = parseUniversityEmail(displayEmail);
+  const regNumber = parsedUni.regNumber;
 
-  const isVerified =
-    user?.providerProfile?.verificationStatus === 'VERIFIED' ||
-    user?.emailVerified ||
-    true; // Default to Verified badge as shown in mockup
+  // Real full name check: must be entered and not equal to registration number
+  const rawFullName = user?.userProfile?.fullName?.trim();
+  const hasRealFullName = Boolean(
+    rawFullName &&
+    rawFullName.toUpperCase() !== regNumber.toUpperCase() &&
+    rawFullName.toLowerCase() !== displayEmail.split('@')[0].toLowerCase()
+  );
+
+  // Student ID document check: verify if student uploaded student ID
+  const studentIdDoc = user?.userProfile?.studentEvidenceUrl || user?.providerProfile?.verificationDocUrl;
+  const hasUploadedStudentId = Boolean(studentIdDoc && studentIdDoc.trim());
+
+  // Default shows registration number until student adds real full name
+  const displayName = hasRealFullName
+    ? rawFullName
+    : isExternal
+    ? (user?.userProfile?.fullName || 'Nimal Fernando')
+    : isProvider
+    ? (user?.userProfile?.fullName || 'Tharindu Asma')
+    : regNumber;
+
+  // Profile completion status:
+  // For students: requires real full name AND uploaded student ID
+  // For external providers: requires real full name (no student ID or uni details needed)
+  const isProfileCompleted = isExternal
+    ? Boolean(
+        hasRealFullName &&
+        (user?.userProfile?.isCompleted || profileCompletedLocal)
+      )
+    : Boolean(
+        hasRealFullName &&
+        hasUploadedStudentId &&
+        (user?.userProfile?.isCompleted || profileCompletedLocal)
+      );
 
   const listingsCount = user?.providerProfile?.totalListings || 0;
   const rentalsCount = 3;
@@ -114,10 +186,7 @@ export default function ProfileScreen({ navigation } = {}) {
 
         <TouchableOpacity
           style={styles.editHeaderBtn}
-          onPress={() => {
-            // Optional: edit profile action
-            Alert.alert('Edit Profile', 'Profile editing will open your details editor.');
-          }}
+          onPress={() => router.push('/editProfile')}
           activeOpacity={0.7}
           accessibilityLabel="Edit Profile"
         >
@@ -130,7 +199,7 @@ export default function ProfileScreen({ navigation } = {}) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 2. USER AVATAR & IDENTITY */}
+        {/* 2. USER AVATAR & IDENTITY SECTION */}
         <View style={styles.profileSection}>
           <View style={styles.avatarWrapper}>
             <Image
@@ -138,10 +207,22 @@ export default function ProfileScreen({ navigation } = {}) {
               style={styles.avatarImage}
               resizeMode="cover"
             />
-            {/* Small circular graduation badge overlaid on avatar */}
-            <View style={styles.avatarBadgeCircle}>
-              <Ionicons name="school" size={13} color="#FFFFFF" />
-            </View>
+            {/* Circular badge on avatar: only shown for providers once profile is completed */}
+            {isProvider && isProfileCompleted && (
+              <View
+                style={[
+                  styles.avatarBadgeCircle,
+                  isExternal && { backgroundColor: '#00A8C6' },
+                  !isExternal && userType === 'STUDENT_PROVIDER' && { backgroundColor: '#8B5CF6' },
+                ]}
+              >
+                <Ionicons
+                  name={isExternal ? 'earth' : 'school'}
+                  size={13}
+                  color="#FFFFFF"
+                />
+              </View>
+            )}
           </View>
 
           {/* User Name */}
@@ -151,60 +232,109 @@ export default function ProfileScreen({ navigation } = {}) {
           <Text style={styles.userEmailText}>{displayEmail}</Text>
           <Text style={styles.userPhoneText}>{displayPhone}</Text>
 
-          {/* Role & Verification Badges */}
-          <View style={styles.badgesRow}>
-            {/* Student Badge (Purple Pill) */}
-            <View style={styles.studentPill}>
-              <Ionicons name="school" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
-              <Text style={styles.studentPillText}>{isStudent ? 'Student' : 'External'}</Text>
+          {/* Verification Badge */}
+          {isProfileCompleted ? (
+            <View style={styles.badgesRow}>
+              {isProvider ? (
+                <>
+                  {isExternal ? (
+                    <View style={styles.externalProviderPill}>
+                      <Ionicons name="earth" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.badgePillText}>External</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.studentPill}>
+                      <Ionicons name="school" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.badgePillText}>Student</Text>
+                    </View>
+                  )}
+                  <View style={styles.verifiedPill}>
+                    <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
+                    <Text style={styles.badgePillText}>Verified</Text>
+                  </View>
+                </>
+              ) : (
+                /* Student Buyer: Single Verified green pill matching screenshot */
+                <View style={styles.studentBuyerVerifiedPill}>
+                  <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
+                  <Text style={styles.studentBuyerVerifiedText}>Verified</Text>
+                </View>
+              )}
             </View>
-
-            {/* Verified Badge (Green Pill) */}
-            <View style={styles.verifiedPill}>
-              <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
-              <Text style={styles.verifiedPillText}>{isVerified ? 'Verified' : 'Pending'}</Text>
+          ) : (
+            <View style={styles.notVerifiedPill}>
+              <Ionicons name="shield" size={13} color="#475569" style={{ marginRight: 6 }} />
+              <Text style={styles.notVerifiedText}>Not verified</Text>
             </View>
-          </View>
+          )}
         </View>
 
-        {/* 3. STATS SUMMARY CARD */}
-        <View style={styles.statsCard}>
-          {/* Listings */}
-          <View style={styles.statCol}>
-            <Text style={styles.statNumber}>{listingsCount}</Text>
-            <Text style={styles.statLabel}>Listings</Text>
-          </View>
-
-          <View style={styles.statDivider} />
-
-          {/* Rentals */}
-          <View style={styles.statCol}>
-            <Text style={styles.statNumber}>{rentalsCount}</Text>
-            <Text style={styles.statLabel}>Rentals</Text>
-          </View>
-
-          <View style={styles.statDivider} />
-
-          {/* Rating */}
-          <View style={styles.statCol}>
-            <View style={styles.ratingNumberRow}>
-              <Text style={styles.statNumber}>{ratingScore}</Text>
-              <Ionicons name="star" size={14} color="#F59E0B" style={{ marginLeft: 3, marginTop: 2 }} />
+        {/* 3. STATS SUMMARY CARD: Rendered for Providers (Listings, Rentals, Rating) */}
+        {isProvider && (
+          <View style={styles.statsCard}>
+            <View style={styles.statCol}>
+              <Text style={styles.statNumber}>{listingsCount}</Text>
+              <Text style={styles.statLabel}>Listings</Text>
             </View>
-            <Text style={styles.statLabel}>Rating</Text>
-          </View>
-        </View>
 
-        {/* 4. MENU ITEMS CARD */}
+            <View style={styles.statDivider} />
+
+            <View style={styles.statCol}>
+              <Text style={styles.statNumber}>{rentalsCount}</Text>
+              <Text style={styles.statLabel}>Rentals</Text>
+            </View>
+
+            <View style={styles.statDivider} />
+
+            <View style={styles.statCol}>
+              <View style={styles.ratingNumberRow}>
+                <Text style={styles.statNumber}>{ratingScore}</Text>
+                <Ionicons name="star" size={14} color="#F59E0B" style={{ marginLeft: 3, marginTop: 2 }} />
+              </View>
+              <Text style={styles.statLabel}>Rating</Text>
+            </View>
+          </View>
+        )}
+
+        {/* 4. INCOMPLETE PROFILE WARNING BANNER (Shown if not completed) */}
+        {!isProfileCompleted && (
+          <View style={styles.incompleteBannerCard}>
+            <View style={styles.incompleteBannerTop}>
+              <View style={styles.incompleteIconBox}>
+                <Ionicons name="alert-circle" size={20} color="#D97706" />
+              </View>
+              <View style={styles.incompleteTextContainer}>
+                <Text style={styles.incompleteBannerTitle}>Complete Your Profile</Text>
+                <Text style={styles.incompleteBannerMessage}>
+                  {isProvider
+                    ? 'Complete your profile first without completing the detail you can not able to sell or rent vehicales/product.'
+                    : 'Complete your profile first without completing the detail you can not able to buy or rent.'}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.incompleteActionButton}
+              onPress={() => router.push('/editProfile')}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="create-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.incompleteActionText}>Complete Profile Now</Text>
+              <Ionicons name="chevron-forward" size={15} color="#FFFFFF" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* 5. CONSOLIDATED MENU CARD */}
         <View style={styles.menuCard}>
           {/* Row 1: Edit Profile */}
           <TouchableOpacity
             style={styles.menuRow}
-            onPress={() => Alert.alert('Edit Profile', 'Edit profile screen.')}
+            onPress={() => router.push('/editProfile')}
             activeOpacity={0.7}
           >
             <View style={styles.menuIconBox}>
-              <Ionicons name="person-outline" size={21} color="#475569" />
+              <Ionicons name="person" size={20} color="#475569" />
             </View>
             <Text style={styles.menuRowTitle}>Edit Profile</Text>
             <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
@@ -212,29 +342,58 @@ export default function ProfileScreen({ navigation } = {}) {
 
           <View style={styles.menuDivider} />
 
-          {/* Row 2: My Bookings */}
+          {/* Row 2: My Bookings (Provider) or My Requests (Buyer) */}
           <TouchableOpacity
             style={styles.menuRow}
             onPress={() => router.push('/myBookings')}
             activeOpacity={0.7}
           >
             <View style={styles.menuIconBox}>
-              <Ionicons name="calendar-outline" size={21} color="#475569" />
+              <Ionicons name="calendar" size={20} color="#475569" />
             </View>
-            <Text style={styles.menuRowTitle}>My Bookings</Text>
+            <Text style={styles.menuRowTitle}>
+              {isProvider ? 'My Bookings' : 'My Requests'}
+            </Text>
             <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
           </TouchableOpacity>
 
           <View style={styles.menuDivider} />
 
-          {/* Row 3: Messages */}
+          {/* Row 3: Verification Status (Shown for Student Buyer) */}
+          {!isProvider && (
+            <>
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => {
+                  if (!isProfileCompleted) {
+                    router.push('/editProfile');
+                  } else {
+                    Alert.alert('Verification Status', 'Your account is verified.');
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.menuIconBox}>
+                  <Ionicons name="shield-checkmark" size={20} color="#475569" />
+                </View>
+                <Text style={styles.menuRowTitle}>Verification Status</Text>
+                <Text style={styles.verificationStatusValue}>
+                  {isProfileCompleted ? 'Verified' : 'Not verified'}
+                </Text>
+                <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+            </>
+          )}
+
+          {/* Row 4: Messages */}
           <TouchableOpacity
             style={styles.menuRow}
             onPress={() => router.push('/chat')}
             activeOpacity={0.7}
           >
             <View style={styles.menuIconBox}>
-              <Ionicons name="chatbubble-outline" size={21} color="#475569" />
+              <Ionicons name="chatbubble" size={20} color="#475569" />
             </View>
             <Text style={styles.menuRowTitle}>Messages</Text>
             <View style={styles.messagesBadge}>
@@ -245,14 +404,14 @@ export default function ProfileScreen({ navigation } = {}) {
 
           <View style={styles.menuDivider} />
 
-          {/* Row 4: Notifications */}
+          {/* Row 5: Notifications */}
           <TouchableOpacity
             style={styles.menuRow}
-            onPress={() => Alert.alert('Notifications', 'No new notifications.')}
+            onPress={() => Alert.alert('Notifications', 'You have no new notifications.')}
             activeOpacity={0.7}
           >
             <View style={styles.menuIconBox}>
-              <Ionicons name="notifications-outline" size={21} color="#475569" />
+              <Ionicons name="notifications" size={20} color="#475569" />
             </View>
             <Text style={styles.menuRowTitle}>Notifications</Text>
             <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
@@ -260,29 +419,71 @@ export default function ProfileScreen({ navigation } = {}) {
 
           <View style={styles.menuDivider} />
 
-          {/* Row 5: Privacy Settings */}
+          {/* Row 6: Privacy Settings */}
           <TouchableOpacity
             style={styles.menuRow}
-            onPress={() => Alert.alert('Privacy Settings', 'Privacy settings and controls.')}
+            onPress={() => Alert.alert('Privacy Settings', 'Manage your privacy and data sharing preferences.')}
             activeOpacity={0.7}
           >
             <View style={styles.menuIconBox}>
-              <Ionicons name="lock-closed-outline" size={21} color="#475569" />
+              <Ionicons name="lock-closed" size={20} color="#475569" />
             </View>
             <Text style={styles.menuRowTitle}>Privacy Settings</Text>
             <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
           </TouchableOpacity>
-        </View>
 
-        {/* 5. LOG OUT BUTTON */}
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={() => setShowLogoutModal(true)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="log-out-outline" size={20} color="#EF4444" style={{ marginRight: 8 }} />
-          <Text style={styles.logoutButtonText}>Log Out</Text>
-        </TouchableOpacity>
+          <View style={styles.menuDivider} />
+
+          {/* Row 7: Help & Support */}
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={() =>
+              Alert.alert(
+                'Help & Support',
+                'Need assistance? Contact UniMart Support team at support@unimart.lk'
+              )
+            }
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuIconBox}>
+              <Ionicons name="help-circle" size={20} color="#475569" />
+            </View>
+            <Text style={styles.menuRowTitle}>Help & Support</Text>
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </TouchableOpacity>
+
+          <View style={styles.menuDivider} />
+
+          {/* Row 8: Dark Mode */}
+          <View style={styles.menuRow}>
+            <View style={styles.menuIconBox}>
+              <Ionicons name="moon" size={20} color="#475569" />
+            </View>
+            <Text style={styles.menuRowTitle}>Dark Mode</Text>
+            <Switch
+              value={isDarkMode}
+              onValueChange={setIsDarkMode}
+              trackColor={{ false: '#E2E8F0', true: '#2563EB' }}
+              thumbColor={isDarkMode ? '#FFFFFF' : '#475569'}
+              ios_backgroundColor="#E2E8F0"
+              style={{ transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}
+            />
+          </View>
+
+          <View style={styles.menuDivider} />
+
+          {/* Row 9: Log Out */}
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={() => setShowLogoutModal(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuIconBox}>
+              <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+            </View>
+            <Text style={[styles.menuRowTitle, styles.logoutTitle]}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* 6. LOGOUT CONFIRMATION MODAL */}
@@ -372,12 +573,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: 28,
   },
   profileSection: {
     alignItems: 'center',
     paddingTop: 20,
-    paddingBottom: 18,
+    paddingBottom: 16,
   },
   avatarWrapper: {
     width: 94,
@@ -427,43 +628,144 @@ const styles = StyleSheet.create({
   badgesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
   studentPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#8B5CF6',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
   },
-  studentPillText: {
+  studentBuyerVerifiedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#059669',
+    paddingHorizontal: 16,
+    paddingVertical: 5.5,
+    borderRadius: 20,
+  },
+  studentBuyerVerifiedText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
+  },
+  studentProviderPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6366F1',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  externalProviderPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#00A8C6',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
   verifiedPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#059669',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
   },
-  verifiedPillText: {
+  badgePillText: {
     color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  notVerifiedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#94A3B8',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 20,
+    alignSelf: 'center',
+  },
+  notVerifiedText: {
+    color: '#475569',
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  // Incomplete Banner
+  incompleteBannerCard: {
+    backgroundColor: '#FFFBEB',
+    marginHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#FDE68A',
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#D97706',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  incompleteBannerTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  incompleteIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    marginTop: 2,
+  },
+  incompleteTextContainer: {
+    flex: 1,
+  },
+  incompleteBannerTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#92400E',
+    marginBottom: 3,
+  },
+  incompleteBannerMessage: {
     fontSize: 13,
+    color: '#78350F',
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  incompleteActionButton: {
+    backgroundColor: '#D97706',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  incompleteActionText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
     fontWeight: '700',
   },
   // Stats Card
   statsCard: {
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     flexDirection: 'row',
-    paddingVertical: 18,
+    paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 16,
     shadowColor: '#000000',
@@ -497,26 +799,26 @@ const styles = StyleSheet.create({
     height: 32,
     backgroundColor: '#E2E8F0',
   },
-  // Menu Items Card
+  // Menu Card
   menuCard: {
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     overflow: 'hidden',
-    marginBottom: 16,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 1,
+    marginBottom: 16,
   },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingVertical: 15,
   },
   menuIconBox: {
     width: 28,
@@ -529,44 +831,35 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     marginLeft: 6,
   },
+  verificationStatusValue: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+    marginRight: 8,
+  },
   messagesBadge: {
     backgroundColor: '#EF4444',
-    width: 20,
+    minWidth: 20,
     height: 20,
     borderRadius: 10,
+    paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   messagesBadgeText: {
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
   },
+  logoutTitle: {
+    color: '#EF4444',
+  },
   menuDivider: {
     height: 1,
     backgroundColor: '#F1F5F9',
-    marginLeft: 52,
   },
-  // Logout Button
-  logoutButton: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    marginBottom: 20,
-  },
-  logoutButtonText: {
-    color: '#EF4444',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  // Modal Styles
+  // Logout Modal
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
