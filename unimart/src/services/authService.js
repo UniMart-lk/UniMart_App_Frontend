@@ -4,7 +4,7 @@ import { saveToken, saveUser, clearAuth, getUser, getToken } from './storage';
 /**
  * Auth Service module for UniMart
  */
-export const authService = {
+const authService = {
   /**
    * Health check for backend server
    */

@@ -7,25 +7,25 @@ import {
   FlatList,
   Image,
   Alert,
-  Dimensions,
+
   RefreshControl,
-  ActivityIndicator,
+
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { products as fallbackProducts } from '../data/mockData';
 import marketplaceService from '../../../services/marketplaceService';
 
-const { width } = Dimensions.get('window');
+
 
 export default function MyListingsScreen() {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'drafts' | 'sold'
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(false);
+
   const [myProducts, setMyProducts] = useState(() => {
     return fallbackProducts.map((item, idx) => ({
       ...item,
@@ -46,7 +46,7 @@ export default function MyListingsScreen() {
       console.warn('Failed to load my listings:', e.message);
     } finally {
       if (isRefresh) setRefreshing(false);
-      setLoading(false);
+
     }
   }, []);
 

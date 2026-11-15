@@ -34,14 +34,14 @@ export default function ProductDetailsScreen() {
       ? fallbackProducts.find((p) => String(p.id) === String(id)) || fallbackProducts[0]
       : fallbackProducts[0];
   });
-  const [isLoading, setIsLoading] = useState(false);
+
 
   React.useEffect(() => {
     let isMounted = true;
     async function fetchLiveProduct() {
       if (!id) return;
       try {
-        setIsLoading(true);
+
         const liveData = await marketplaceService.getProductById(id);
         if (liveData && isMounted) {
           setProduct(liveData);
@@ -49,7 +49,7 @@ export default function ProductDetailsScreen() {
       } catch (err) {
         console.warn('Could not fetch live product details:', err.message);
       } finally {
-        if (isMounted) setIsLoading(false);
+
       }
     }
     fetchLiveProduct();

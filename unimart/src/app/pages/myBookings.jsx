@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useChat } from '@/features/chat/ChatContext';
 
 // UniMart Project Theme Colors
@@ -247,7 +247,7 @@ export default function MyBookingsScreen({
 
   // Data states
   const [bookings, setListingsData] = useState(INITIAL_BOOKINGS);
-  const [myListings, setMyListings] = useState(INITIAL_MY_LISTINGS);
+  const [myListings] = useState(INITIAL_MY_LISTINGS);
 
   // Modal states
   const [selectedBooking, setSelectedBooking] = useState(null);

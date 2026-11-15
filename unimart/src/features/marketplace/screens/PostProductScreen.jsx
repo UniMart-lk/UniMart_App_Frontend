@@ -13,7 +13,7 @@ import {
   Alert,
   Platform,
   KeyboardAvoidingView,
-  Dimensions,
+
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,7 +23,7 @@ import { useRouter } from 'expo-router';
 import { products } from '../data/mockData';
 import marketplaceService from '../../../services/marketplaceService';
 
-const { width } = Dimensions.get('window');
+
 
 // Available categories matching mockData and marketplace
 const CATEGORIES = [
@@ -968,7 +968,7 @@ export default function PostProductScreen() {
 
             <Text style={styles.successTitle}>Listing Published!</Text>
             <Text style={styles.successMessage}>
-              "{title}" has been successfully added to the UniMart Marketplace and is visible to buyers.
+              {`"${title}" has been successfully added to the UniMart Marketplace and is visible to buyers.`}
             </Text>
 
             <View style={styles.successActions}>

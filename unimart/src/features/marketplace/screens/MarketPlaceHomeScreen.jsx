@@ -1,9 +1,21 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, TouchableWithoutFeedback, BackHandler, RefreshControl, ActivityIndicator } from 'react-native'
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  Modal,
+  TouchableWithoutFeedback,
+  BackHandler,
+  RefreshControl,
+  ScrollView,
+  FlatList,
+} from 'react-native';
 import React, { useState, useCallback } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, FlatList } from 'react-native';
+
 import BottomNav from '../../../components/BottomNav';
 import ProductCard from '../components/ProductCard';
 import FilterModal from '../components/FilterModal'; // 👈 Import FilterModal
@@ -24,7 +36,7 @@ export default function MarketplaceHomeScreen() {
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [productsList, setProductsList] = useState(fallbackProducts);
-  const [loading, setLoading] = useState(false);
+
   const [refreshing, setRefreshing] = useState(false);
 
   // 👇 Filter Modal States
@@ -64,7 +76,7 @@ export default function MarketplaceHomeScreen() {
       console.warn('Error fetching live marketplace products:', err.message);
     } finally {
       if (isRefresh) setRefreshing(false);
-      setLoading(false);
+
     }
   }, []);
 

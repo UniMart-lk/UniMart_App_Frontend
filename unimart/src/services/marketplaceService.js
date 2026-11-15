@@ -5,7 +5,7 @@ import { products as fallbackProducts } from '../features/marketplace/data/mockD
  * Marketplace Service module for UniMart
  * Handles communication with the backend marketplace endpoints
  */
-export const marketplaceService = {
+const marketplaceService = {
   /**
    * Fetch marketplace product feed with optional filters
    * @param {Object} params - { category, search, sort, maxPrice, conditions, minRating, providerType }

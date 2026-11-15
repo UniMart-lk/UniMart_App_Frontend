@@ -423,7 +423,7 @@ export function ChatScreen() {
     if (conversation && conversation.unreadCount > 0) {
       markAsRead(conversation.id);
     }
-  }, [conversation?.id]);
+  }, [conversation, markAsRead]);
 
   function handleSend() {
     if (!inputText.trim() || !conversation) return;

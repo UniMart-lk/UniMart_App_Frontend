@@ -178,12 +178,34 @@ export default function RentalFeedScreen() {
   }, [loadMoreError, loadMoreRentals]);
 
   useEffect(() => {
-    loadRentals();
+    let isMounted = true;
+    const requestId = ++latestRequestId.current;
+
+    async function initialFetch() {
+      try {
+        const { rentals: firstPage, nextCursor: firstCursor } = await getRentalFeed();
+        if (isMounted && requestId === latestRequestId.current) {
+          setRentals(withoutDuplicates(firstPage));
+          setNextCursor(firstPage.length > 0 ? firstCursor : null);
+        }
+      } catch (err) {
+        if (isMounted && requestId === latestRequestId.current) {
+          setError(err?.message || 'Something went wrong while loading rentals.');
+        }
+      } finally {
+        if (isMounted && requestId === latestRequestId.current) {
+          setLoading(false);
+        }
+      }
+    }
+
+    initialFetch();
 
     return () => {
+      isMounted = false;
       latestRequestId.current += 1;
     };
-  }, [loadRentals]);
+  }, []);
 
   const renderItem = useCallback(({ item }) => <RentalCard item={item} />, []);
 
@@ -228,7 +250,7 @@ export default function RentalFeedScreen() {
   } else if (error) {
     content = (
       <View style={styles.centered}>
-        <Text style={styles.errorTitle}>Couldn't load rentals</Text>
+        <Text style={styles.errorTitle}>{"Couldn't load rentals"}</Text>
         <Text style={styles.statusText}>{error}</Text>
         <Pressable
           style={({ pressed }) => [styles.retryButton, pressed && styles.retryButtonPressed]}

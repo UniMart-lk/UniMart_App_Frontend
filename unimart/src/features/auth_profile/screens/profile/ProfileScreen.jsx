@@ -23,7 +23,6 @@ export default function ProfileScreen({ navigation } = {}) {
   const router = useRouter();
 
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -40,28 +39,22 @@ export default function ProfileScreen({ navigation } = {}) {
   );
 
   useEffect(() => {
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
-    try {
-      // 1. Try locally cached user
-      const stored = await authService.getStoredUser();
-      if (stored) {
-        setUser(stored);
+    async function fetchProfile() {
+      try {
+        const stored = await authService.getStoredUser();
+        if (stored) {
+          setUser(stored);
+        }
+        const fresh = await authService.getCurrentUser();
+        if (fresh) {
+          setUser(fresh);
+        }
+      } catch (err) {
+        console.log('Error loading profile info:', err.message);
       }
-
-      // 2. Fetch fresh user profile from backend API
-      const fresh = await authService.getCurrentUser();
-      if (fresh) {
-        setUser(fresh);
-      }
-    } catch (err) {
-      console.log('Error loading profile info:', err.message);
-    } finally {
-      setLoading(false);
     }
-  };
+    fetchProfile();
+  }, []);
 
   const handleLogoutConfirm = async () => {
     setLoggingOut(true);

@@ -7,7 +7,7 @@ import {
   Image,
   ScrollView,
   FlatList,
-  Dimensions,
+
   StatusBar,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -16,7 +16,7 @@ import { products as fallbackProducts } from '../data/mockData';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import marketplaceService from '../../../services/marketplaceService';
 
-const { width } = Dimensions.get('window');
+
 
 export default function ProductReviewsScreen() {
   const router = useRouter();

@@ -1,6 +1,10 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 
 const ChatContext = createContext(null);
+
+function generateId(prefix = 'id') {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+}
 
 const DEFAULT_CONVERSATIONS = [
   {
@@ -149,94 +153,8 @@ export function ChatProvider({ children }) {
     return conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
   }, [conversations]);
 
-  // Create or retrieve existing conversation with a seller or admin
-  function createOrGetConversation({
-    name,
-    role = 'seller',
-    badge,
-    isVerified = false,
-    avatar,
-    item = null,
-  }) {
-    const trimmedName = (name || 'Contact').trim();
-
-    // Check if an existing conversation exists with this person for the same item (or same name for admins)
-    const existing = conversations.find((c) => {
-      const sameName = c.name.toLowerCase() === trimmedName.toLowerCase();
-      if (item && c.item) {
-        return sameName && (c.item.id === item.id || c.item.title === item.title);
-      }
-      return sameName && c.role === role;
-    });
-
-    if (existing) {
-      return existing.id;
-    }
-
-    const newId = `conv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const newConv = {
-      id: newId,
-      name: trimmedName,
-      role,
-      badge: badge || (role === 'admin' ? 'Official Admin' : 'Student Seller'),
-      isVerified: role === 'admin' ? true : isVerified,
-      avatar:
-        avatar ||
-        (role === 'admin'
-          ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80'
-          : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80'),
-      onlineStatus: 'Online',
-      item,
-      unreadCount: 0,
-      messages: [
-        {
-          id: `m-init-${Date.now()}`,
-          sender: role,
-          text:
-            role === 'admin'
-              ? `Hello! This is UniMart ${trimmedName}. How can we support your campus activities?`
-              : `Hi! Thanks for reaching out regarding "${item?.title || 'my listing'}". Feel free to ask any questions.`,
-          createdAt: new Date().toISOString(),
-          isRead: true,
-        },
-      ],
-    };
-
-    setConversations((prev) => [newConv, ...prev]);
-    return newId;
-  }
-
-  // Send a message
-  function sendMessage(conversationId, text) {
-    if (!text || !text.trim()) return;
-
-    const userMessage = {
-      id: `m-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      sender: 'user',
-      text: text.trim(),
-      createdAt: new Date().toISOString(),
-      isRead: true,
-    };
-
-    setConversations((items) => {
-      const target = items.find((c) => c.id === conversationId);
-      if (!target) return items;
-
-      const updated = {
-        ...target,
-        messages: [...target.messages, userMessage],
-      };
-
-      // Move updated conversation to top
-      return [updated, ...items.filter((c) => c.id !== conversationId)];
-    });
-
-    // Provide automated simulation replies for a rich interactive experience
-    simulatePartnerReply(conversationId, text.trim());
-  }
-
   // Simulate contextual reply from seller or admin after 1-2 seconds
-  function simulatePartnerReply(conversationId, userText) {
+  const simulatePartnerReply = useCallback((conversationId, userText) => {
     setTimeout(() => {
       setConversations((items) => {
         const target = items.find((c) => c.id === conversationId);
@@ -260,7 +178,7 @@ export function ChatProvider({ children }) {
         }
 
         const replyMessage = {
-          id: `m-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          id: generateId('m'),
           sender: target.role,
           text: replyText,
           createdAt: new Date().toISOString(),
@@ -276,10 +194,96 @@ export function ChatProvider({ children }) {
         return [updated, ...items.filter((c) => c.id !== conversationId)];
       });
     }, 1200);
-  }
+  }, []);
+
+  // Create or retrieve existing conversation with a seller or admin
+  const createOrGetConversation = useCallback(({
+    name,
+    role = 'seller',
+    badge,
+    isVerified = false,
+    avatar,
+    item = null,
+  }) => {
+    const trimmedName = (name || 'Contact').trim();
+
+    // Check if an existing conversation exists with this person for the same item (or same name for admins)
+    const existing = conversations.find((c) => {
+      const sameName = c.name.toLowerCase() === trimmedName.toLowerCase();
+      if (item && c.item) {
+        return sameName && (c.item.id === item.id || c.item.title === item.title);
+      }
+      return sameName && c.role === role;
+    });
+
+    if (existing) {
+      return existing.id;
+    }
+
+    const newId = generateId('conv');
+    const newConv = {
+      id: newId,
+      name: trimmedName,
+      role,
+      badge: badge || (role === 'admin' ? 'Official Admin' : 'Student Seller'),
+      isVerified: role === 'admin' ? true : isVerified,
+      avatar:
+        avatar ||
+        (role === 'admin'
+          ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80'
+          : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80'),
+      onlineStatus: 'Online',
+      item,
+      unreadCount: 0,
+      messages: [
+        {
+          id: generateId('m-init'),
+          sender: role,
+          text:
+            role === 'admin'
+              ? `Hello! This is UniMart ${trimmedName}. How can we support your campus activities?`
+              : `Hi! Thanks for reaching out regarding "${item?.title || 'my listing'}". Feel free to ask any questions.`,
+          createdAt: new Date().toISOString(),
+          isRead: true,
+        },
+      ],
+    };
+
+    setConversations((prev) => [newConv, ...prev]);
+    return newId;
+  }, [conversations]);
+
+  // Send a message
+  const sendMessage = useCallback((conversationId, text) => {
+    if (!text || !text.trim()) return;
+
+    const userMessage = {
+      id: generateId('m'),
+      sender: 'user',
+      text: text.trim(),
+      createdAt: new Date().toISOString(),
+      isRead: true,
+    };
+
+    setConversations((items) => {
+      const target = items.find((c) => c.id === conversationId);
+      if (!target) return items;
+
+      const updated = {
+        ...target,
+        messages: [...target.messages, userMessage],
+      };
+
+      // Move updated conversation to top
+      return [updated, ...items.filter((c) => c.id !== conversationId)];
+    });
+
+    // Provide automated simulation replies for a rich interactive experience
+    simulatePartnerReply(conversationId, text.trim());
+  }, [simulatePartnerReply]);
 
   // Mark all messages as read
-  function markAsRead(conversationId) {
+  const markAsRead = useCallback((conversationId) => {
     setConversations((items) =>
       items.map((c) => {
         if (c.id === conversationId) {
@@ -292,16 +296,16 @@ export function ChatProvider({ children }) {
         return c;
       })
     );
-  }
+  }, []);
 
   // Delete conversation
-  function deleteConversation(conversationId) {
+  const deleteConversation = useCallback((conversationId) => {
     setConversations((items) => items.filter((c) => c.id !== conversationId));
-  }
+  }, []);
 
-  function clearConversations() {
+  const clearConversations = useCallback(() => {
     setConversations([]);
-  }
+  }, []);
 
   return (
     <ChatContext.Provider
