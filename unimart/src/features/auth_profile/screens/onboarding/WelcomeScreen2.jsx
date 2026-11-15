@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,29 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import authService from '@/services/authService';
 
 const { width } = Dimensions.get('window');
 
 export default function WelcomeScreen2({ navigation, onNext, onSkip } = {}) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      const isAuth = await authService.isAuthenticated();
+      if (isAuth) {
+        router.replace('/marketplace');
+        return;
+      }
+      const hasAccount = await authService.hasExistingAccount();
+      const done = await authService.isOnboardingCompleted();
+      if (hasAccount || done) {
+        router.replace('/login');
+      }
+    };
+    checkStatus();
+  }, []);
 
   const handleNext = () => {
     if (onNext) {
@@ -31,7 +48,8 @@ export default function WelcomeScreen2({ navigation, onNext, onSkip } = {}) {
     }
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    await authService.setOnboardingCompleted();
     if (onSkip) {
       onSkip();
     } else if (navigation?.navigate) {
