@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getLoadedRental, parseRentalId } from '../services/rentalService';
 import { formatRentalPrice, formatVehicleType, getValidImageUrl } from '../components/RentalCard';
 import RentalPickupMap from '../components/RentalPickupMap';
+import RentalAssetSummary from '../components/RentalAssetSummary';
 import { getRentalDirectionsUrl } from '../utils/rentalDirections';
 
 const IMAGE_HEIGHT = 320;
@@ -231,6 +232,9 @@ export default function RentalDetailsScreen() {
             ))}
           </View>
 
+          {/* Physical assets: renders nothing until the backend returns asset records for the rental */}
+          <RentalAssetSummary assets={rental.assets} style={styles.assetSummary} />
+
           <View style={styles.divider} />
 
           {/* Pickup location */}
@@ -386,6 +390,13 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#E2E8F0',
     marginVertical: 14,
+  },
+  // Draws the same line as divider above the summary, so the line only exists when the summary is shown
+  assetSummary: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
   },
   sectionTitle: {
     fontSize: 18,
