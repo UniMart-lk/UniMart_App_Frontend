@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRentalDraft } from '../context/RentalDraftContext';
 import { formatVehicleType } from '../components/RentalCard';
 import { formatCoordinate, toPickerCoordinate } from '../components/LocationPickerMap';
+import AssetListEditor from '../components/AssetListEditor';
+import { isDuplicateAssetIdentifier, validateAssetIdentifier, validateAssetNotes } from '../utils/rentalAssets';
 
 // Backend VehicleType enum values
 const VEHICLE_TYPES = ['MOTORCYCLE', 'CAR', 'THREE_WHEELER', 'BICYCLE'];
@@ -64,6 +66,35 @@ const VEHICLE_TYPE_OPTIONS = VEHICLE_TYPES.map((value) => ({ value, label: forma
 const CONDITION_OPTIONS = CONDITIONS.map((value) => ({ value, label: value }));
 
 /**
+ * First problem with the draft's assets, numbered like the asset cards (e.g. "Asset 2: ...")
+ * @param {object[]} assets - draft assets { key, assetIdentifier, notes }
+ * @returns {string|null} null when there is at least one asset and every asset is valid
+ */
+function findAssetProblem(assets) {
+  if (!Array.isArray(assets) || assets.length === 0) {
+    return 'Please add at least one physical asset.';
+  }
+
+  for (let index = 0; index < assets.length; index++) {
+    const asset = assets[index];
+    const identifier = validateAssetIdentifier(asset.assetIdentifier);
+    if (!identifier.isValid) {
+      return `Asset ${index + 1}: ${identifier.error}`;
+    }
+    const otherIdentifiers = assets.filter((other) => other.key !== asset.key).map((other) => other.assetIdentifier);
+    if (isDuplicateAssetIdentifier(asset.assetIdentifier, otherIdentifiers)) {
+      return `Asset ${index + 1}: Another asset already uses this identifier.`;
+    }
+    const notes = validateAssetNotes(asset.notes);
+    if (!notes.isValid) {
+      return `Asset ${index + 1}: ${notes.error}`;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Form for a provider to list a rental vehicle
  * Values live in RentalDraftContext, so they are kept while the pickup location screen is open.
  * Nothing is sent to the backend yet.
@@ -74,6 +105,9 @@ export default function CreateRentalScreen() {
 
   // The draft belongs to this visit to the form: leaving the form starts the next listing empty
   useEffect(() => resetDraft, [resetDraft]);
+
+  // After a publish attempt with asset problems, every asset card shows its errors (even ones not visited yet)
+  const [showAssetErrors, setShowAssetErrors] = useState(false);
 
   // Only a valid confirmed location counts as selected
   const pickupCoordinate = toPickerCoordinate(draft.pickupLocation?.latitude, draft.pickupLocation?.longitude);
@@ -130,6 +164,16 @@ export default function CreateRentalScreen() {
       Alert.alert('Required Field', 'Please select the Pickup Location on the map.');
       return;
     }
+    const assetProblem = findAssetProblem(draft.assets);
+    if (assetProblem) {
+      const hasAssets = draft.assets.length > 0;
+      // With no assets there is no card to highlight; turning errors on would flag the next card before it is typed in
+      if (hasAssets) {
+        setShowAssetErrors(true);
+      }
+      Alert.alert(hasAssets ? 'Invalid Asset' : 'Required Field', assetProblem);
+      return;
+    }
 
     const listing = {
       title: draft.title.trim(),
@@ -146,6 +190,12 @@ export default function CreateRentalScreen() {
         latitude: pickupCoordinate.latitude,
         longitude: pickupCoordinate.longitude,
       },
+      // Backend RentalAsset fields; trimmed here for submission only (the inputs keep what was typed).
+      // No status (the backend defaults new assets to AVAILABLE) and no temporary key.
+      assets: draft.assets.map((asset) => ({
+        assetIdentifier: validateAssetIdentifier(asset.assetIdentifier).value,
+        notes: validateAssetNotes(asset.notes).value,
+      })),
     };
 
     // Saving is not connected to the backend yet; the listing is only checked and logged
@@ -343,6 +393,8 @@ export default function CreateRentalScreen() {
               />
             </View>
           </View>
+
+          <AssetListEditor showAllErrors={showAssetErrors} style={styles.fieldGroup} />
         </ScrollView>
       </KeyboardAvoidingView>
 

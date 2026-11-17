@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
+import { getAvailableAssetCount, getTotalAssetCount } from '../utils/rentalAssets';
 
 // Backend sends Prisma RentalPeriod enum values (HOURLY, DAILY, WEEKLY, MONTHLY)
 const PERIOD_LABELS = {
@@ -74,6 +75,17 @@ export function formatRentalPrice(price, period) {
   return periodLabel ? `Rs. ${formatted} / ${periodLabel}` : `Rs. ${formatted}`;
 }
 
+// Available and total physical assets from the rental's own asset records (counted by rentalAssets),
+// or null when there is no usable asset data, so a card never shows made-up availability
+function getAssetAvailability(assets) {
+  if (!Array.isArray(assets)) {
+    return null;
+  }
+
+  const total = getTotalAssetCount(assets);
+  return total > 0 ? { available: getAvailableAssetCount(assets), total } : null;
+}
+
 function RentalCard({ item, onPress }) {
   const title = (typeof item?.title === 'string' ? item.title.trim() : '') || 'Untitled rental';
   const price = formatRentalPrice(item?.rentalPrice, item?.rentalPeriod);
@@ -82,6 +94,12 @@ function RentalCard({ item, onPress }) {
   const vehicleType = formatVehicleType(item?.vehicle?.vehicleType);
   const rawLocation = item?.vehicle?.pickupLocationName;
   const pickupLocation = typeof rawLocation === 'string' ? rawLocation.trim() : '';
+
+  // Hidden until the backend returns asset records for the rental
+  const assetAvailability = getAssetAvailability(item?.assets);
+  const availabilityText = assetAvailability
+    ? `${assetAvailability.available} of ${assetAvailability.total} available`
+    : null;
 
   const imageUrl = getValidImageUrl(item?.primaryImageUrl);
   // Unique per rental so a recycled card never flashes the previous rental's image
@@ -123,6 +141,14 @@ function RentalCard({ item, onPress }) {
           <Text style={styles.priceUnavailable}>Price not available</Text>
         )}
 
+        {availabilityText ? (
+          <View style={[styles.availabilityBadge, assetAvailability.available === 0 && styles.availabilityBadgeNone]}>
+            <Text style={[styles.availabilityText, assetAvailability.available === 0 && styles.availabilityTextNone]}>
+              {availabilityText}
+            </Text>
+          </View>
+        ) : null}
+
         {vehicleType || pickupLocation ? (
           <View style={styles.vehicleRow}>
             {vehicleType ? (
@@ -152,7 +178,7 @@ function RentalCard({ item, onPress }) {
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={() => onPress(item)}
       accessibilityRole="button"
-      accessibilityLabel={`${title}, ${price ?? 'Price not available'}`}
+      accessibilityLabel={`${title}, ${price ?? 'Price not available'}${availabilityText ? `, ${availabilityText}` : ''}`}
     >
       {cardContent}
     </Pressable>
@@ -212,6 +238,26 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 14,
     fontWeight: '500',
+    color: '#64748B',
+  },
+  // Same green as "Available" in RentalAssetSummary; grey when nothing is available
+  availabilityBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  availabilityBadgeNone: {
+    backgroundColor: '#F1F5F9',
+  },
+  availabilityText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#16A34A',
+  },
+  availabilityTextNone: {
     color: '#64748B',
   },
   vehicleRow: {

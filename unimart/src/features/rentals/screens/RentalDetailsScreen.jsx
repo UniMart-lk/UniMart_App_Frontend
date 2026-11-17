@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getLoadedRental, parseRentalId } from '../services/rentalService';
 import { formatRentalPrice, formatVehicleType, getValidImageUrl } from '../components/RentalCard';
 import RentalPickupMap from '../components/RentalPickupMap';
+import RentalAssetSummary from '../components/RentalAssetSummary';
 import { getRentalDirectionsUrl } from '../utils/rentalDirections';
 
 const IMAGE_HEIGHT = 320;
@@ -20,7 +21,7 @@ function toText(value) {
 }
 
 // Shown in place of the details when the rental cannot be displayed
-function RentalUnavailable({ title, message, onGoBack }) {
+function RentalUnavailable({ title, message, onGoBack, onBrowseRentals }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
@@ -36,6 +37,15 @@ function RentalUnavailable({ title, message, onGoBack }) {
           accessibilityLabel="Go back"
         >
           <Text style={styles.goBackButtonText}>Go Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.browseButton}
+          onPress={onBrowseRentals}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Browse rentals"
+        >
+          <Text style={styles.browseButtonText}>Browse Rentals</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -68,22 +78,30 @@ export default function RentalDetailsScreen() {
     }
   };
 
+  // Returns to the rentals list if it is already open underneath, otherwise opens it in place of this screen
+  const handleBrowseRentals = () => {
+    router.dismissTo('/rentals');
+  };
+
   if (rentalId === null) {
     return (
       <RentalUnavailable
         title="Invalid rental link"
         message="This link does not point to a rental. Please choose a rental from the rentals list."
         onGoBack={handleGoBack}
+        onBrowseRentals={handleBrowseRentals}
       />
     );
   }
 
+  // Details come from the rentals the list has loaded in this session; there is no single-rental request yet
   if (!rental) {
     return (
       <RentalUnavailable
         title="Rental not found"
-        message="We couldn't find this rental. It may have been removed, or the rentals list needs to be opened first."
+        message="This rental may have been removed, or it hasn't been loaded in this session yet. Open it from the rentals list to see its details."
         onGoBack={handleGoBack}
+        onBrowseRentals={handleBrowseRentals}
       />
     );
   }
@@ -213,6 +231,9 @@ export default function RentalDetailsScreen() {
               </View>
             ))}
           </View>
+
+          {/* Physical assets: renders nothing until the backend returns asset records for the rental */}
+          <RentalAssetSummary assets={rental.assets} style={styles.assetSummary} />
 
           <View style={styles.divider} />
 
@@ -370,6 +391,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#E2E8F0',
     marginVertical: 14,
   },
+  // Draws the same line as divider above the summary, so the line only exists when the summary is shown
+  assetSummary: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -474,7 +502,10 @@ const styles = StyleSheet.create({
     color: '#64748B',
     textAlign: 'center',
   },
+  // Same minimum width as browseButton, so the stacked buttons line up
   goBackButton: {
+    minWidth: 180,
+    alignItems: 'center',
     marginTop: 20,
     backgroundColor: '#2563EB',
     borderRadius: 12,
@@ -485,5 +516,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  browseButton: {
+    minWidth: 180,
+    alignItems: 'center',
+    marginTop: 12,
+    borderWidth: 1.5,
+    borderColor: '#2563EB',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+  },
+  browseButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2563EB',
   },
 });
