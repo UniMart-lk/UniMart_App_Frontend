@@ -1,14 +1,16 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons';
 import { getLoadedRental, parseRentalId } from '../services/rentalService';
 import { formatRentalPrice, formatVehicleType, getValidImageUrl } from '../components/RentalCard';
 import RentalPickupMap from '../components/RentalPickupMap';
+import { getRentalDirectionsUrl } from '../utils/rentalDirections';
 
 const IMAGE_HEIGHT = 320;
 
@@ -53,6 +55,9 @@ export default function RentalDetailsScreen() {
 
   // Remember which image url failed, so a different rental or url tries again (same approach as RentalCard)
   const [failedImageUrl, setFailedImageUrl] = useState(null);
+  // True while a directions link is being opened, so rapid taps do not open Maps several times.
+  // A ref, not state: it changes synchronously and needs no re-render or loading UI.
+  const isOpeningDirections = useRef(false);
 
   const handleGoBack = () => {
     if (router.canGoBack()) {
@@ -90,6 +95,26 @@ export default function RentalDetailsScreen() {
   const vehicleType = formatVehicleType(rental.vehicle?.vehicleType);
   const makeModel = toText(rental.vehicle?.makeModel);
   const pickupLocation = toText(rental.vehicle?.pickupLocationName);
+  // null when the rental has no valid pickup coordinates, which hides the Get Directions button
+  const directionsUrl = getRentalDirectionsUrl(rental);
+
+  // Opens the Google Maps app when installed, otherwise Google Maps in the browser
+  const handleGetDirections = async () => {
+    if (!directionsUrl || isOpeningDirections.current) {
+      return;
+    }
+
+    isOpeningDirections.current = true;
+    try {
+      await Linking.openURL(directionsUrl);
+    } catch (error) {
+      console.warn('Could not open directions:', error?.message);
+      Alert.alert('Directions Unavailable', "We couldn't open Google Maps. Please try again later.");
+    } finally {
+      // Reset after success or failure, so the user can try again
+      isOpeningDirections.current = false;
+    }
+  };
 
   const imageUrl = getValidImageUrl(rental.primaryImageUrl);
   const showImage = imageUrl !== null && failedImageUrl !== imageUrl;
@@ -191,7 +216,7 @@ export default function RentalDetailsScreen() {
 
           <View style={styles.divider} />
 
-          {/* Pickup location (directions are added in a later task) */}
+          {/* Pickup location */}
           <Text style={styles.sectionTitle}>Pickup Location</Text>
           <View style={styles.locationRow}>
             <View style={styles.locationIconWrap}>
@@ -210,6 +235,19 @@ export default function RentalDetailsScreen() {
             locationName={pickupLocation}
             style={styles.pickupMap}
           />
+          {directionsUrl ? (
+            <TouchableOpacity
+              style={styles.directionsButton}
+              onPress={handleGetDirections}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={pickupLocation ? `Get directions to ${pickupLocation}` : 'Get directions to the pickup location'}
+              accessibilityHint="Opens directions in Google Maps"
+            >
+              <Ionicons name="navigate" size={18} color="#FFFFFF" style={styles.directionsIcon} />
+              <Text style={styles.directionsButtonText}>Get Directions</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -396,6 +434,24 @@ const styles = StyleSheet.create({
   },
   pickupMap: {
     marginTop: 12,
+  },
+  directionsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    marginTop: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: '#2563EB',
+  },
+  directionsIcon: {
+    marginRight: 8,
+  },
+  directionsButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 
   // --- ERROR STATE STYLES ---
