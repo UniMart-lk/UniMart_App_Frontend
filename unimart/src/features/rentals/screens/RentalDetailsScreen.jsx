@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons';
 import { getLoadedRental, parseRentalId } from '../services/rentalService';
 import { formatRentalPrice, formatVehicleType, getValidImageUrl } from '../components/RentalCard';
@@ -94,8 +95,18 @@ export default function RentalDetailsScreen() {
   // null when the rental has no valid pickup coordinates, which hides the Get Directions button
   const directionsUrl = getRentalDirectionsUrl(rental);
 
-  const handleGetDirections = () => {
-    // Opening directionsUrl in Google Maps is the next subtask (Task 2.4)
+  // Opens the Google Maps app when installed, otherwise Google Maps in the browser
+  const handleGetDirections = async () => {
+    if (!directionsUrl) {
+      return;
+    }
+
+    try {
+      await Linking.openURL(directionsUrl);
+    } catch (error) {
+      console.warn('Could not open directions:', error?.message);
+      Alert.alert('Directions Unavailable', "We couldn't open Google Maps. Please try again later.");
+    }
   };
 
   const imageUrl = getValidImageUrl(rental.primaryImageUrl);
@@ -224,6 +235,7 @@ export default function RentalDetailsScreen() {
               activeOpacity={0.85}
               accessibilityRole="button"
               accessibilityLabel={pickupLocation ? `Get directions to ${pickupLocation}` : 'Get directions to the pickup location'}
+              accessibilityHint="Opens directions in Google Maps"
             >
               <Ionicons name="navigate" size={18} color="#FFFFFF" style={styles.directionsIcon} />
               <Text style={styles.directionsButtonText}>Get Directions</Text>
