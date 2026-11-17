@@ -51,3 +51,41 @@ export function getRentalPickupDestination(rental) {
 export function canGetDirections(rental) {
   return getRentalPickupDestination(rental) !== null;
 }
+
+const GOOGLE_MAPS_DIRECTIONS_URL = 'https://www.google.com/maps/dir/?api=1';
+// Same precision as the backend's Decimal(10, 7) latitude/longitude columns (~1 cm)
+const URL_COORDINATE_DECIMALS = 7;
+
+// Plain decimal text for a URL: String(0.0000001) would give "1e-7", which a maps app may not read.
+// Up to 7 decimals with trailing zeros removed, e.g. 6.9271 -> "6.9271", 80 -> "80"
+function formatUrlCoordinate(value) {
+  const text = value.toFixed(URL_COORDINATE_DECIMALS).replace(/\.?0+$/, '');
+  // A tiny negative value rounds to "-0"
+  return text === '-0' ? '0' : text;
+}
+
+/**
+ * Google Maps directions URL to a pickup destination
+ * The destination is validated again, so a hand-built or stale object can never produce a broken URL.
+ * @param {{ latitude: number|string, longitude: number|string }|null} destination - e.g. from getRentalPickupDestination
+ * @returns {string|null} e.g. "https://www.google.com/maps/dir/?api=1&destination=6.9271,79.8612";
+ *   null when the destination is missing or its coordinates are invalid
+ */
+export function getGoogleMapsDirectionsUrl(destination) {
+  const valid = getPickupDestination(destination?.latitude, destination?.longitude);
+  if (!valid) {
+    return null;
+  }
+
+  const coordinates = `${formatUrlCoordinate(valid.latitude)},${formatUrlCoordinate(valid.longitude)}`;
+  return `${GOOGLE_MAPS_DIRECTIONS_URL}&destination=${coordinates}`;
+}
+
+/**
+ * Google Maps directions URL to a rental's pickup location
+ * @param {object} rental - rental feed item
+ * @returns {string|null} null when the rental has no valid pickup coordinates (e.g. equipment rentals)
+ */
+export function getRentalDirectionsUrl(rental) {
+  return getGoogleMapsDirectionsUrl(getRentalPickupDestination(rental));
+}
