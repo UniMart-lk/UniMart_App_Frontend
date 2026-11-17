@@ -8,6 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getLoadedRental, parseRentalId } from '../services/rentalService';
 import { formatRentalPrice, formatVehicleType, getValidImageUrl } from '../components/RentalCard';
+import RentalPickupMap from '../components/RentalPickupMap';
 
 const IMAGE_HEIGHT = 320;
 
@@ -190,7 +191,7 @@ export default function RentalDetailsScreen() {
 
           <View style={styles.divider} />
 
-          {/* Pickup location (the map and directions are added in a later task) */}
+          {/* Pickup location (directions are added in a later task) */}
           <Text style={styles.sectionTitle}>Pickup Location</Text>
           <View style={styles.locationRow}>
             <View style={styles.locationIconWrap}>
@@ -202,6 +203,13 @@ export default function RentalDetailsScreen() {
               <Text style={styles.locationMissing}>Pickup location not provided</Text>
             )}
           </View>
+          {/* Equipment rentals have vehicle: null, so the map shows its "unavailable" message */}
+          <RentalPickupMap
+            latitude={rental.vehicle?.latitude}
+            longitude={rental.vehicle?.longitude}
+            locationName={pickupLocation}
+            style={styles.pickupMap}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -385,6 +393,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: '#64748B',
+  },
+  pickupMap: {
+    marginTop: 12,
   },
 
   // --- ERROR STATE STYLES ---
