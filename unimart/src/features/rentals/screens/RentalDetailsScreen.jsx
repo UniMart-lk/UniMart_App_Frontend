@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -55,6 +55,9 @@ export default function RentalDetailsScreen() {
 
   // Remember which image url failed, so a different rental or url tries again (same approach as RentalCard)
   const [failedImageUrl, setFailedImageUrl] = useState(null);
+  // True while a directions link is being opened, so rapid taps do not open Maps several times.
+  // A ref, not state: it changes synchronously and needs no re-render or loading UI.
+  const isOpeningDirections = useRef(false);
 
   const handleGoBack = () => {
     if (router.canGoBack()) {
@@ -97,15 +100,19 @@ export default function RentalDetailsScreen() {
 
   // Opens the Google Maps app when installed, otherwise Google Maps in the browser
   const handleGetDirections = async () => {
-    if (!directionsUrl) {
+    if (!directionsUrl || isOpeningDirections.current) {
       return;
     }
 
+    isOpeningDirections.current = true;
     try {
       await Linking.openURL(directionsUrl);
     } catch (error) {
       console.warn('Could not open directions:', error?.message);
       Alert.alert('Directions Unavailable', "We couldn't open Google Maps. Please try again later.");
+    } finally {
+      // Reset after success or failure, so the user can try again
+      isOpeningDirections.current = false;
     }
   };
 
