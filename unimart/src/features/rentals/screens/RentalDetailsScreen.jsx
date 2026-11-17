@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getLoadedRental, parseRentalId } from '../services/rentalService';
 import { formatRentalPrice, formatVehicleType, getValidImageUrl } from '../components/RentalCard';
 import RentalPickupMap from '../components/RentalPickupMap';
+import { getRentalDirectionsUrl } from '../utils/rentalDirections';
 
 const IMAGE_HEIGHT = 320;
 
@@ -90,6 +91,12 @@ export default function RentalDetailsScreen() {
   const vehicleType = formatVehicleType(rental.vehicle?.vehicleType);
   const makeModel = toText(rental.vehicle?.makeModel);
   const pickupLocation = toText(rental.vehicle?.pickupLocationName);
+  // null when the rental has no valid pickup coordinates, which hides the Get Directions button
+  const directionsUrl = getRentalDirectionsUrl(rental);
+
+  const handleGetDirections = () => {
+    // Opening directionsUrl in Google Maps is the next subtask (Task 2.4)
+  };
 
   const imageUrl = getValidImageUrl(rental.primaryImageUrl);
   const showImage = imageUrl !== null && failedImageUrl !== imageUrl;
@@ -191,7 +198,7 @@ export default function RentalDetailsScreen() {
 
           <View style={styles.divider} />
 
-          {/* Pickup location (directions are added in a later task) */}
+          {/* Pickup location */}
           <Text style={styles.sectionTitle}>Pickup Location</Text>
           <View style={styles.locationRow}>
             <View style={styles.locationIconWrap}>
@@ -210,6 +217,18 @@ export default function RentalDetailsScreen() {
             locationName={pickupLocation}
             style={styles.pickupMap}
           />
+          {directionsUrl ? (
+            <TouchableOpacity
+              style={styles.directionsButton}
+              onPress={handleGetDirections}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={pickupLocation ? `Get directions to ${pickupLocation}` : 'Get directions to the pickup location'}
+            >
+              <Ionicons name="navigate" size={18} color="#FFFFFF" style={styles.directionsIcon} />
+              <Text style={styles.directionsButtonText}>Get Directions</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -396,6 +415,24 @@ const styles = StyleSheet.create({
   },
   pickupMap: {
     marginTop: 12,
+  },
+  directionsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    marginTop: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: '#2563EB',
+  },
+  directionsIcon: {
+    marginRight: 8,
+  },
+  directionsButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 
   // --- ERROR STATE STYLES ---
