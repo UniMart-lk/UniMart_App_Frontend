@@ -260,8 +260,9 @@ export default function StudentDetailsScreen() {
   // Student Evidence File: null by default so it's always verified
   const [studentEvidenceFile, setStudentEvidenceFile] = useState(null);
 
-  // Profile completion status
+  // Profile completion & admin verification status
   const [isProfileCompleted, setIsProfileCompleted] = useState(false);
+  const [providerVerificationStatus, setProviderVerificationStatus] = useState('PENDING');
 
   // Accordion state: Collapsed by default as in screenshot
   const [isAccordionOpen, setIsAccordionOpen] = useState(false);
@@ -302,6 +303,10 @@ export default function StudentDetailsScreen() {
         stored?.providerProfile?.providerType === 'Student Provider';
 
       const isProv = isExt || isStudProv || stored?.role === 'PROVIDER' || Boolean(stored?.providerProfile);
+
+      if (stored?.providerProfile?.verificationStatus) {
+        setProviderVerificationStatus(stored.providerProfile.verificationStatus);
+      }
 
       const userEmail =
         stored?.email ||
@@ -443,7 +448,7 @@ export default function StudentDetailsScreen() {
     setSaving(true);
 
     try {
-      await authService.updateProfile({
+      const result = await authService.updateProfile({
         fullName: trimmedName,
         contactNumber: contactNumber.trim(),
         providerDisplayName: isProvider ? providerDisplayName.trim() : null,
@@ -462,6 +467,9 @@ export default function StudentDetailsScreen() {
         badgeType: isExternalProvider ? 'EXTERNAL_PROVIDER' : (isStudentProvider ? 'STUDENT_PROVIDER' : 'STUDENT'),
       });
 
+      if (result?.user?.providerProfile?.verificationStatus) {
+        setProviderVerificationStatus(result.user.providerProfile.verificationStatus);
+      }
       setIsProfileCompleted(true);
       setSaving(false);
       setShowSuccessModal(true);
@@ -566,8 +574,8 @@ export default function StudentDetailsScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Verified Student / Provider Badge Pill: ONLY shown if profile is completed */}
-            {isProfileCompleted && (
+            {/* Verified Student / Provider Badge Pill: providers require Admin approval */}
+            {(isProvider ? isProfileCompleted && providerVerificationStatus === 'VERIFIED' : isProfileCompleted) && (
               <View style={styles.verifiedStudentPill}>
                 <Ionicons name="checkmark" size={13} color="#059669" style={{ marginRight: 5 }} />
                 <Text style={styles.verifiedStudentPillText}>
@@ -879,7 +887,9 @@ export default function StudentDetailsScreen() {
             </View>
             <Text style={styles.successModalTitle}>Profile Updated</Text>
             <Text style={styles.successModalMessage}>
-              Your {isStudentProvider ? 'Student Provider' : 'Student'} profile details have been saved and verified!
+              {isProvider && providerVerificationStatus !== 'VERIFIED'
+                ? `Your ${isExternalProvider ? 'External Provider' : 'Student Provider'} profile has been saved and submitted for admin verification.`
+                : `Your ${isStudentProvider ? 'Student Provider' : 'Student'} profile details have been saved and verified!`}
             </Text>
 
             <TouchableOpacity
