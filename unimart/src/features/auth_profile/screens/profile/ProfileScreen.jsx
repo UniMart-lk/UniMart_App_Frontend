@@ -232,34 +232,24 @@ export default function ProfileScreen() {
           <Text style={styles.userEmailText}>{displayEmail}</Text>
           <Text style={styles.userPhoneText}>{displayPhone}</Text>
 
-          {/* Verification Badge */}
+          {/* Verification & Account Type Badges */}
           {isProfileCompleted ? (
             <View style={styles.badgesRow}>
-              {isProvider ? (
-                <>
-                  {isExternal ? (
-                    <View style={styles.externalProviderPill}>
-                      <Ionicons name="earth" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
-                      <Text style={styles.badgePillText}>External</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.studentPill}>
-                      <Ionicons name="school" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
-                      <Text style={styles.badgePillText}>Student</Text>
-                    </View>
-                  )}
-                  <View style={styles.verifiedPill}>
-                    <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
-                    <Text style={styles.badgePillText}>Verified</Text>
-                  </View>
-                </>
+              {isExternal ? (
+                <View style={styles.externalProviderPill}>
+                  <Ionicons name="earth" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.badgePillText}>External</Text>
+                </View>
               ) : (
-                /* Student Buyer: Single Verified green pill matching screenshot */
-                <View style={styles.studentBuyerVerifiedPill}>
-                  <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
-                  <Text style={styles.studentBuyerVerifiedText}>Verified</Text>
+                <View style={styles.studentPill}>
+                  <Ionicons name="school" size={13} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.badgePillText}>Student</Text>
                 </View>
               )}
+              <View style={styles.verifiedPill}>
+                <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
+                <Text style={styles.badgePillText}>Verified</Text>
+              </View>
             </View>
           ) : (
             <View style={styles.notVerifiedPill}>
