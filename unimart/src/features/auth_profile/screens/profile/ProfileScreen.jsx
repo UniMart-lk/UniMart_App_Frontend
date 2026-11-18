@@ -172,6 +172,14 @@ export default function ProfileScreen() {
         (user?.userProfile?.isCompleted || profileCompletedLocal)
       );
 
+  // Providers require Admin approval (verificationStatus === 'VERIFIED') before badges unlock
+  const providerVerificationStatus =
+    user?.providerProfile?.verificationStatus || 'PENDING';
+  const isProviderAdminVerified = providerVerificationStatus === 'VERIFIED';
+  const isAccountVerified = isProvider
+    ? Boolean(isProfileCompleted && isProviderAdminVerified)
+    : isProfileCompleted;
+
   const listingsCount = user?.providerProfile?.totalListings || 0;
   const rentalsCount = 3;
   const ratingScore = '4.8';
@@ -207,8 +215,8 @@ export default function ProfileScreen() {
               style={styles.avatarImage}
               resizeMode="cover"
             />
-            {/* Circular badge on avatar: only shown for providers once profile is completed */}
-            {isProvider && isProfileCompleted && (
+            {/* Circular badge on avatar: shown for providers once profile is completed & admin verified */}
+            {isProvider && isAccountVerified && (
               <View
                 style={[
                   styles.avatarBadgeCircle,
@@ -233,7 +241,7 @@ export default function ProfileScreen() {
           <Text style={styles.userPhoneText}>{displayPhone}</Text>
 
           {/* Verification & Account Type Badges */}
-          {isProfileCompleted ? (
+          {isAccountVerified ? (
             <View style={styles.badgesRow}>
               {isExternal ? (
                 <View style={styles.externalProviderPill}>
@@ -286,8 +294,8 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* 4. INCOMPLETE PROFILE WARNING BANNER (Shown if not completed) */}
-        {!isProfileCompleted && (
+        {/* 4. INCOMPLETE PROFILE OR PENDING ADMIN VERIFICATION BANNER */}
+        {!isProfileCompleted ? (
           <View style={styles.incompleteBannerCard}>
             <View style={styles.incompleteBannerTop}>
               <View style={styles.incompleteIconBox}>
@@ -313,6 +321,46 @@ export default function ProfileScreen() {
               <Ionicons name="chevron-forward" size={15} color="#FFFFFF" style={{ marginLeft: 4 }} />
             </TouchableOpacity>
           </View>
+        ) : (
+          isProvider &&
+          !isProviderAdminVerified && (
+            <View style={styles.incompleteBannerCard}>
+              <View style={styles.incompleteBannerTop}>
+                <View style={styles.incompleteIconBox}>
+                  <Ionicons
+                    name={providerVerificationStatus === 'REJECTED' ? 'close-circle' : 'time'}
+                    size={20}
+                    color={providerVerificationStatus === 'REJECTED' ? '#DC2626' : '#D97706'}
+                  />
+                </View>
+                <View style={styles.incompleteTextContainer}>
+                  <Text style={styles.incompleteBannerTitle}>
+                    {providerVerificationStatus === 'REJECTED'
+                      ? 'Verification Rejected'
+                      : 'Pending Admin Approval'}
+                  </Text>
+                  <Text style={styles.incompleteBannerMessage}>
+                    {providerVerificationStatus === 'REJECTED'
+                      ? user?.providerProfile?.rejectionReason ||
+                        'Your verification request was not approved. Please update your details and resubmit.'
+                      : 'Your provider profile is submitted and waiting for admin approval. Your provider badges will appear once approved.'}
+                  </Text>
+                </View>
+              </View>
+
+              {providerVerificationStatus === 'REJECTED' && (
+                <TouchableOpacity
+                  style={styles.incompleteActionButton}
+                  onPress={() => router.push('/editProfile')}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="create-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.incompleteActionText}>Update Profile</Text>
+                  <Ionicons name="chevron-forward" size={15} color="#FFFFFF" style={{ marginLeft: 4 }} />
+                </TouchableOpacity>
+              )}
+            </View>
+          )
         )}
 
         {/* 5. CONSOLIDATED MENU CARD */}
