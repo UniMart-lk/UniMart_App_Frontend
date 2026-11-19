@@ -73,6 +73,13 @@ export default function ProfileScreen() {
         if (fresh?.userProfile?.isCompleted) {
           setProfileCompletedLocal(true);
         }
+        const resolvedBadge =
+          fresh.role === 'PROVIDER'
+            ? fresh.providerProfile?.providerType || 'STUDENT_PROVIDER'
+            : fresh.userProfile?.userType === 'EXTERNAL'
+              ? 'EXTERNAL_PROVIDER'
+              : 'STUDENT';
+        setStoredBadge(resolvedBadge);
       }
     } catch (err) {
       console.log('Error loading profile info:', err.message);
@@ -99,22 +106,38 @@ export default function ProfileScreen() {
   };
 
   // User Type: STUDENT, STUDENT_PROVIDER, or EXTERNAL_PROVIDER
-  const isExternal =
-    storedBadge === 'EXTERNAL_PROVIDER' ||
-    user?.providerProfile?.providerType === 'EXTERNAL_PROVIDER' ||
-    user?.providerProfile?.providerType === 'External Provider' ||
-    user?.userProfile?.userType === 'EXTERNAL' ||
-    (user?.role === 'PROVIDER' && !user?.email?.includes('.ac.lk') && !user?.email?.includes('student'));
+  // Always trust backend profile fields first before falling back to local cache or email domain
+  const explicitProviderType = String(user?.providerProfile?.providerType || '').toUpperCase();
+  const explicitUserType = String(user?.userProfile?.userType || '').toUpperCase();
+
+  let isExternal = false;
+  if (explicitProviderType.includes('STUDENT')) {
+    isExternal = false;
+  } else if (explicitProviderType.includes('EXTERNAL')) {
+    isExternal = true;
+  } else if (explicitUserType === 'STUDENT') {
+    isExternal = false;
+  } else if (explicitUserType === 'EXTERNAL') {
+    isExternal = true;
+  } else if (storedBadge === 'STUDENT_PROVIDER' || storedBadge === 'STUDENT') {
+    isExternal = false;
+  } else if (storedBadge === 'EXTERNAL_PROVIDER') {
+    isExternal = true;
+  } else {
+    isExternal =
+      user?.role === 'PROVIDER' &&
+      !user?.email?.includes('.ac.lk') &&
+      !user?.email?.includes('student');
+  }
 
   const isProvider =
     isExternal ||
+    explicitProviderType.length > 0 ||
     storedBadge === 'STUDENT_PROVIDER' ||
     user?.role === 'PROVIDER' ||
     Boolean(user?.providerProfile);
 
-  const userType = storedBadge
-    ? storedBadge
-    : isProvider
+  const userType = isProvider
     ? isExternal
       ? 'EXTERNAL_PROVIDER'
       : 'STUDENT_PROVIDER'
@@ -153,10 +176,10 @@ export default function ProfileScreen() {
   const displayName = hasRealFullName
     ? rawFullName
     : isExternal
-    ? (user?.userProfile?.fullName || 'Nimal Fernando')
-    : isProvider
-    ? (user?.userProfile?.fullName || 'Tharindu Asma')
-    : regNumber;
+    ? (user?.userProfile?.fullName || displayEmail.split('@')[0])
+    : parsedUni.isMatched
+    ? regNumber
+    : (user?.userProfile?.fullName || regNumber);
 
   // Profile completion status:
   // For students: requires real full name AND uploaded student ID
