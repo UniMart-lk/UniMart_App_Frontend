@@ -260,8 +260,9 @@ export default function StudentDetailsScreen() {
   // Student Evidence File: null by default so it's always verified
   const [studentEvidenceFile, setStudentEvidenceFile] = useState(null);
 
-  // Profile completion status
+  // Profile completion & admin verification status
   const [isProfileCompleted, setIsProfileCompleted] = useState(false);
+  const [providerVerificationStatus, setProviderVerificationStatus] = useState('PENDING');
 
   // Accordion state: Collapsed by default as in screenshot
   const [isAccordionOpen, setIsAccordionOpen] = useState(false);
@@ -286,22 +287,43 @@ export default function StudentDetailsScreen() {
 
   const loadUserData = async () => {
     try {
-      const stored = await authService.getStoredUser();
+      const cached = await authService.getStoredUser();
+      const fresh = await authService.getCurrentUser();
+      const stored = fresh || cached;
       const storedBadge = await authService.getStoredBadgeType();
 
-      const isExt =
-        storedBadge === 'EXTERNAL_PROVIDER' ||
-        stored?.providerProfile?.providerType === 'EXTERNAL_PROVIDER' ||
-        stored?.providerProfile?.providerType === 'External Provider' ||
-        stored?.userProfile?.userType === 'EXTERNAL' ||
-        (stored?.role === 'PROVIDER' && !stored?.email?.includes('.ac.lk') && !stored?.email?.includes('student'));
+      const explicitProvType = String(stored?.providerProfile?.providerType || '').toUpperCase();
+      const explicitUserType = String(stored?.userProfile?.userType || '').toUpperCase();
+
+      let isExt = false;
+      if (explicitProvType.includes('STUDENT')) {
+        isExt = false;
+      } else if (explicitProvType.includes('EXTERNAL')) {
+        isExt = true;
+      } else if (explicitUserType === 'STUDENT') {
+        isExt = false;
+      } else if (explicitUserType === 'EXTERNAL') {
+        isExt = true;
+      } else if (storedBadge === 'STUDENT_PROVIDER' || storedBadge === 'STUDENT') {
+        isExt = false;
+      } else if (storedBadge === 'EXTERNAL_PROVIDER') {
+        isExt = true;
+      } else {
+        isExt =
+          stored?.role === 'PROVIDER' &&
+          !stored?.email?.includes('.ac.lk') &&
+          !stored?.email?.includes('student');
+      }
 
       const isStudProv =
-        storedBadge === 'STUDENT_PROVIDER' ||
-        stored?.providerProfile?.providerType === 'STUDENT_PROVIDER' ||
-        stored?.providerProfile?.providerType === 'Student Provider';
+        explicitProvType.includes('STUDENT') ||
+        (!isExt && storedBadge === 'STUDENT_PROVIDER');
 
       const isProv = isExt || isStudProv || stored?.role === 'PROVIDER' || Boolean(stored?.providerProfile);
+
+      if (stored?.providerProfile?.verificationStatus) {
+        setProviderVerificationStatus(stored.providerProfile.verificationStatus);
+      }
 
       const userEmail =
         stored?.email ||
@@ -333,7 +355,7 @@ export default function StudentDetailsScreen() {
       if (hasRealName) {
         setFullName(rawName);
       } else {
-        setFullName(isExt ? "Nimal Fernando" : isProv ? "Amaya Perera" : regNumber);
+        setFullName(isExt ? (rawName || '') : regNumber);
       }
 
       // Check if student ID document is uploaded (for students)
@@ -443,7 +465,7 @@ export default function StudentDetailsScreen() {
     setSaving(true);
 
     try {
-      await authService.updateProfile({
+      const result = await authService.updateProfile({
         fullName: trimmedName,
         contactNumber: contactNumber.trim(),
         providerDisplayName: isProvider ? providerDisplayName.trim() : null,
@@ -462,6 +484,10 @@ export default function StudentDetailsScreen() {
         badgeType: isExternalProvider ? 'EXTERNAL_PROVIDER' : (isStudentProvider ? 'STUDENT_PROVIDER' : 'STUDENT'),
       });
 
+      const savedUser = result?.user || result;
+      if (savedUser?.providerProfile?.verificationStatus) {
+        setProviderVerificationStatus(savedUser.providerProfile.verificationStatus);
+      }
       setIsProfileCompleted(true);
       setSaving(false);
       setShowSuccessModal(true);
@@ -566,8 +592,8 @@ export default function StudentDetailsScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Verified Student / Provider Badge Pill: ONLY shown if profile is completed */}
-            {isProfileCompleted && (
+            {/* Verified Student / Provider Badge Pill: providers require Admin approval */}
+            {(isProvider ? isProfileCompleted && providerVerificationStatus === 'VERIFIED' : isProfileCompleted) && (
               <View style={styles.verifiedStudentPill}>
                 <Ionicons name="checkmark" size={13} color="#059669" style={{ marginRight: 5 }} />
                 <Text style={styles.verifiedStudentPillText}>
@@ -879,7 +905,9 @@ export default function StudentDetailsScreen() {
             </View>
             <Text style={styles.successModalTitle}>Profile Updated</Text>
             <Text style={styles.successModalMessage}>
-              Your {isStudentProvider ? 'Student Provider' : 'Student'} profile details have been saved and verified!
+              {isProvider && providerVerificationStatus !== 'VERIFIED'
+                ? `Your ${isExternalProvider ? 'External Provider' : 'Student Provider'} profile has been saved and submitted for admin verification.`
+                : `Your ${isStudentProvider ? 'Student Provider' : 'Student'} profile details have been saved and verified!`}
             </Text>
 
             <TouchableOpacity
