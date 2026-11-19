@@ -287,20 +287,37 @@ export default function StudentDetailsScreen() {
 
   const loadUserData = async () => {
     try {
-      const stored = await authService.getStoredUser();
+      const cached = await authService.getStoredUser();
+      const fresh = await authService.getCurrentUser();
+      const stored = fresh || cached;
       const storedBadge = await authService.getStoredBadgeType();
 
-      const isExt =
-        storedBadge === 'EXTERNAL_PROVIDER' ||
-        stored?.providerProfile?.providerType === 'EXTERNAL_PROVIDER' ||
-        stored?.providerProfile?.providerType === 'External Provider' ||
-        stored?.userProfile?.userType === 'EXTERNAL' ||
-        (stored?.role === 'PROVIDER' && !stored?.email?.includes('.ac.lk') && !stored?.email?.includes('student'));
+      const explicitProvType = String(stored?.providerProfile?.providerType || '').toUpperCase();
+      const explicitUserType = String(stored?.userProfile?.userType || '').toUpperCase();
+
+      let isExt = false;
+      if (explicitProvType.includes('STUDENT')) {
+        isExt = false;
+      } else if (explicitProvType.includes('EXTERNAL')) {
+        isExt = true;
+      } else if (explicitUserType === 'STUDENT') {
+        isExt = false;
+      } else if (explicitUserType === 'EXTERNAL') {
+        isExt = true;
+      } else if (storedBadge === 'STUDENT_PROVIDER' || storedBadge === 'STUDENT') {
+        isExt = false;
+      } else if (storedBadge === 'EXTERNAL_PROVIDER') {
+        isExt = true;
+      } else {
+        isExt =
+          stored?.role === 'PROVIDER' &&
+          !stored?.email?.includes('.ac.lk') &&
+          !stored?.email?.includes('student');
+      }
 
       const isStudProv =
-        storedBadge === 'STUDENT_PROVIDER' ||
-        stored?.providerProfile?.providerType === 'STUDENT_PROVIDER' ||
-        stored?.providerProfile?.providerType === 'Student Provider';
+        explicitProvType.includes('STUDENT') ||
+        (!isExt && storedBadge === 'STUDENT_PROVIDER');
 
       const isProv = isExt || isStudProv || stored?.role === 'PROVIDER' || Boolean(stored?.providerProfile);
 
@@ -338,7 +355,7 @@ export default function StudentDetailsScreen() {
       if (hasRealName) {
         setFullName(rawName);
       } else {
-        setFullName(isExt ? "Nimal Fernando" : isProv ? "Amaya Perera" : regNumber);
+        setFullName(isExt ? (rawName || '') : regNumber);
       }
 
       // Check if student ID document is uploaded (for students)
@@ -467,8 +484,9 @@ export default function StudentDetailsScreen() {
         badgeType: isExternalProvider ? 'EXTERNAL_PROVIDER' : (isStudentProvider ? 'STUDENT_PROVIDER' : 'STUDENT'),
       });
 
-      if (result?.user?.providerProfile?.verificationStatus) {
-        setProviderVerificationStatus(result.user.providerProfile.verificationStatus);
+      const savedUser = result?.user || result;
+      if (savedUser?.providerProfile?.verificationStatus) {
+        setProviderVerificationStatus(savedUser.providerProfile.verificationStatus);
       }
       setIsProfileCompleted(true);
       setSaving(false);
