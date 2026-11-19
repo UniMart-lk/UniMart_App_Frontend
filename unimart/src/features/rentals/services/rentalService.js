@@ -23,6 +23,55 @@ function toNextCursor(value) {
   return null;
 }
 
+// Rentals loaded by the feed, by id, so the details screen can show one without another request.
+// Keyed by String(id), like the feed's list keys, so 5 and '5' are the same rental.
+// Capped so a long scrolling session does not keep every rental in memory; the oldest are dropped first.
+const loadedRentals = new Map();
+const LOADED_RENTALS_LIMIT = 500;
+
+function rememberRental(rental) {
+  const key = String(rental.id).trim();
+  // Re-inserting moves a refreshed rental to the newest end, so it is dropped last
+  loadedRentals.delete(key);
+  loadedRentals.set(key, rental);
+
+  if (loadedRentals.size > LOADED_RENTALS_LIMIT) {
+    loadedRentals.delete(loadedRentals.keys().next().value);
+  }
+}
+
+/**
+ * Read a rental id from a route param
+ * Rental ids are positive whole numbers; anything else (missing, '', 'abc', '1.5', a repeated param
+ * that arrives as an array) cannot be a real rental
+ * @param {*} value - e.g. the id from useLocalSearchParams()
+ * @returns {number|null} null when the value is not a valid rental id
+ */
+export function parseRentalId(value) {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value > 0 ? value : null;
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    const id = Number(value);
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
+  }
+  return null;
+}
+
+/**
+ * Find a rental the feed has already loaded in this session
+ * There is no GET /api/rentals/:id yet, so this is the only lookup: a rental the feed has not loaded
+ * (e.g. opened from a link after the app restarts) is not found.
+ * @param {number|string} id
+ * @returns {object|null} the feed item, or null when it has not been loaded
+ */
+export function getLoadedRental(id) {
+  if (id === null || id === undefined) {
+    return null;
+  }
+  return loadedRentals.get(String(id).trim()) ?? null;
+}
+
 /**
  * Fetch one page of active rental listings for the feed
  * GET /api/rentals?limit=20&cursor=123
@@ -50,6 +99,8 @@ export async function getRentalFeed({ limit = 20, cursor } = {}) {
   if (rentals.length !== feed.rentals.length) {
     console.warn(`Skipped ${feed.rentals.length - rentals.length} malformed rental(s) in the feed response.`);
   }
+
+  rentals.forEach(rememberRental);
 
   return {
     rentals,
