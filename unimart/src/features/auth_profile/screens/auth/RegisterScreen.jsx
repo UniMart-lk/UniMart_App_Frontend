@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import authService from '@/services/authService';
+import { parseUniversityEmail } from '../profile/StudentDetailsScreen';
 
 export default function RegisterScreen({ navigation } = {}) {
   const insets = useSafeAreaInsets();
@@ -195,7 +196,7 @@ export default function RegisterScreen({ navigation } = {}) {
 
   // Validation for Step 2 (Provider Verification)
   const validateVerificationForm = () => {
-    if (providerType === 'Student Provider') {
+    if (providerType.toLowerCase().includes('student')) {
       if (!studentFullName.trim()) {
         setErrorMessage('Please enter your full name.');
         return false;
@@ -246,23 +247,17 @@ export default function RegisterScreen({ navigation } = {}) {
     if (step === 1) {
       if (!validateBasicForm()) return;
 
-      if (userType === 'provider') {
-        // Proceed to Step 2: Provider verification form
-        setErrorMessage('');
-        setStep(2);
-      } else {
-        // Buyer & renter account: Send real OTP email and proceed to OTP verification
-        setErrorMessage('');
-        setLoading(true);
-        try {
-          await authService.sendVerificationOtp(email.trim());
-          setOtpCode('');
-          setStep('otp');
-        } catch (error) {
-          setErrorMessage(error.message || 'Failed to send verification code to your email.');
-        } finally {
-          setLoading(false);
-        }
+      // Both buyers and providers must verify their email via 6-digit OTP
+      setErrorMessage('');
+      setLoading(true);
+      try {
+        await authService.sendVerificationOtp(email.trim());
+        setOtpCode('');
+        setStep('otp');
+      } catch (error) {
+        setErrorMessage(error.message || 'Failed to send verification code to your email.');
+      } finally {
+        setLoading(false);
       }
     } else if (step === 2) {
       if (!validateVerificationForm()) return;
@@ -271,7 +266,7 @@ export default function RegisterScreen({ navigation } = {}) {
       setErrorMessage('');
 
       try {
-        const isStudent = providerType === 'Student Provider';
+        const isStudent = providerType.toLowerCase().includes('student');
         const verificationData = isStudent
           ? {
               fullName: studentFullName.trim(),
@@ -292,7 +287,7 @@ export default function RegisterScreen({ navigation } = {}) {
           password: password,
           contactNumber: contactNumber.trim(),
           role: 'PROVIDER',
-          providerType: providerType,
+          providerType: isStudent ? 'STUDENT_PROVIDER' : 'EXTERNAL_PROVIDER',
           verificationData: verificationData,
         });
 
@@ -318,41 +313,56 @@ export default function RegisterScreen({ navigation } = {}) {
 
     const isProvider = userType === 'provider';
     const isStudentProvider = providerType.toLowerCase().includes('student');
+    const trimmedEmail = email.trim();
+
+    // Parse academic details ONLY for student accounts (Student Buyer or Student Provider)
+    const shouldExtractAcademic = !isProvider || isStudentProvider;
+    const parsedAcademic = shouldExtractAcademic ? parseUniversityEmail(trimmedEmail) : null;
+
+    const registrationPayload = {
+      email: trimmedEmail,
+      password: password,
+      contactNumber: contactNumber.trim(),
+      role: isProvider ? 'PROVIDER' : 'USER',
+      otpCode: trimmedOtp,
+      providerType: isProvider
+        ? isStudentProvider
+          ? 'STUDENT_PROVIDER'
+          : 'EXTERNAL_PROVIDER'
+        : undefined,
+      verificationData: isProvider
+        ? isStudentProvider
+          ? {
+              fullName: parsedAcademic?.isMatched
+                ? parsedAcademic.regNumber
+                : trimmedEmail.split('@')[0],
+              universityEmail: trimmedEmail,
+              university: parsedAcademic?.university || null,
+              faculty: parsedAcademic?.faculty || null,
+              department: parsedAcademic?.department || null,
+              intakeBatch: parsedAcademic?.intakeBatch || null,
+              studentId: parsedAcademic?.regNumber || null,
+            }
+          : {
+              fullName: trimmedEmail.split('@')[0],
+            }
+        : {
+            fullName: parsedAcademic?.isMatched
+              ? parsedAcademic.regNumber
+              : trimmedEmail.split('@')[0],
+            universityEmail: trimmedEmail,
+            university: parsedAcademic?.university || null,
+            faculty: parsedAcademic?.faculty || null,
+            department: parsedAcademic?.department || null,
+            intakeBatch: parsedAcademic?.intakeBatch || null,
+            studentId: parsedAcademic?.regNumber || null,
+          },
+    };
 
     try {
-      // 1. Register or login user with backend
-      try {
-        await authService.register({
-          email: email.trim(),
-          password: password,
-          contactNumber: contactNumber.trim(),
-          role: isProvider ? 'PROVIDER' : 'USER',
-          otpCode: trimmedOtp,
-          providerType: isProvider
-            ? isStudentProvider
-              ? 'STUDENT_PROVIDER'
-              : 'EXTERNAL_PROVIDER'
-            : undefined,
-          verificationData: isProvider
-            ? {
-                fullName: email.trim().split('@')[0],
-                universityEmail: isStudentProvider ? email.trim() : null,
-              }
-            : undefined,
-        });
-      } catch (regError) {
-        // If account already exists (e.g. re-testing with same credentials), log in
-        if (
-          regError.message?.toLowerCase().includes('already exists') ||
-          regError.status === 409
-        ) {
-          await authService.login(email.trim(), password);
-        } else {
-          throw regError;
-        }
-      }
+      await authService.register(registrationPayload);
 
-      // 2. Navigate directly inside the app to marketplace
+      // Navigate directly inside the app to marketplace
       if (navigation?.replace) {
         navigation.replace('marketplace');
       } else if (navigation?.navigate) {
@@ -750,7 +760,7 @@ export default function RegisterScreen({ navigation } = {}) {
                       </Text>
                     </View>
                     <Text style={styles.fictionalSubtext}>
-                      All visible values are fictional demo data. No account is actually created.
+                      We will send a 6-digit verification code to confirm your email address.
                     </Text>
                   </>
                 )}
@@ -1201,7 +1211,7 @@ export default function RegisterScreen({ navigation } = {}) {
                 providerType.toLowerCase().includes('student') && styles.modalOptionActive,
               ]}
               onPress={() => {
-                setProviderType('Student provider');
+                setProviderType('Student Provider');
                 setProviderDropdownOpen(false);
               }}
             >
@@ -1225,7 +1235,7 @@ export default function RegisterScreen({ navigation } = {}) {
                 !providerType.toLowerCase().includes('student') && styles.modalOptionActive,
               ]}
               onPress={() => {
-                setProviderType('External provider');
+                setProviderType('External Provider');
                 setProviderDropdownOpen(false);
               }}
             >
