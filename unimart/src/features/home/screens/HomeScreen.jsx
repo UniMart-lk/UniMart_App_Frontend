@@ -330,9 +330,9 @@ export default function HomeScreen() {
                 : `Rs. ${Number(product.numericPrice || product.price || 0).toLocaleString()}`;
 
             const imgUrl =
-              product.images && product.images.length > 0
-                ? product.images[0]
-                : 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&q=80';
+              product.primaryImageUrl ||
+              (product.images && product.images.length > 0 ? product.images[0] : null) ||
+              'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&q=80';
 
             return (
               <TouchableOpacity
