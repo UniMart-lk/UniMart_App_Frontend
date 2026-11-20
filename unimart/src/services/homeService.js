@@ -11,6 +11,23 @@ export const homeService = {
       return null;
     }
   },
+  async getFeaturedProducts(limit = 10) {
+    try {
+      const response = await apiRequest(`/home/featured-products?limit=${limit}`, { method: 'GET' });
+      return response?.data?.products || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async getFeaturedRentals(limit = 10) {
+    try {
+      const response = await apiRequest(`/home/featured-rentals?limit=${limit}`, { method: 'GET' });
+      return response?.data?.rentals || [];
+    } catch {
+      return [];
+    }
+  },
 };
 
 export default homeService;
