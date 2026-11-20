@@ -214,6 +214,50 @@ export default function HomeScreen() {
             <Text style={styles.seeAllText}>See All</Text>
           </TouchableOpacity>
         </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCardsScroll}>
+          {rentalsList.map((rental) => {
+            const priceLabel = `Rs. ${Number(rental.rentalPrice || 0).toLocaleString()}/${rental.rentalPeriod || 'day'}`;
+            return (
+              <TouchableOpacity
+                key={`rental-${rental.id}`}
+                style={styles.rentalCard}
+                activeOpacity={0.85}
+                onPress={() => router.push({ pathname: '/rentalDetails', params: { id: rental.id } })}
+              >
+                <View style={styles.rentalImageContainer}>
+                  <Image source={{ uri: rental.primaryImageUrl }} style={styles.rentalImage} />
+                </View>
+                <View style={styles.cardBody}>
+                  <Text style={styles.rentalTitle} numberOfLines={1}>{rental.title}</Text>
+                  <View style={styles.rentalPriceBadge}>
+                    <Text style={styles.rentalPriceBadgeText}>{priceLabel}</Text>
+                  </View>
+                  <View style={styles.availabilityRow}>
+                    <View style={styles.greenDot} />
+                    <Text style={styles.availabilityText} numberOfLines={1}>{rental.availability}</Text>
+                  </View>
+                  <View style={styles.locationRow}>
+                    <Ionicons name="location-sharp" size={12} color="#64748B" style={{ marginRight: 3 }} />
+                    <Text style={styles.locationText} numberOfLines={1}>{rental.location}</Text>
+                  </View>
+                  <View style={styles.rentalFooterRow}>
+                    <View style={styles.ratingStarsRow}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Ionicons key={star} name="star" size={11} color="#F59E0B" style={{ marginRight: 1 }} />
+                      ))}
+                      <Text style={styles.ratingNumberText}>{rental.rating}</Text>
+                      <Text style={styles.reviewsCountText}>({rental.reviewsCount})</Text>
+                    </View>
+                    <View style={styles.tealBadgePill}>
+                      <MaterialCommunityIcons name="earth" size={12} color="#FFFFFF" />
+                      <Ionicons name="storefront" size={11} color="#FFFFFF" style={{ marginLeft: 3 }} />
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </ScrollView>
     </SafeAreaView>
   );
