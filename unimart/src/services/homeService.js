@@ -28,6 +28,23 @@ export const homeService = {
       return [];
     }
   },
+  async getCategories() {
+    try {
+      const response = await apiRequest('/home/categories', { method: 'GET' });
+      return response?.data?.categories || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async getNotificationCount() {
+    try {
+      const response = await apiRequest('/home/notifications-count', { method: 'GET' });
+      return response?.data || { unreadNotifications: 0, unreadMessages: 0 };
+    } catch {
+      return { unreadNotifications: 0, unreadMessages: 0 };
+    }
+  },
 };
 
 export default homeService;
