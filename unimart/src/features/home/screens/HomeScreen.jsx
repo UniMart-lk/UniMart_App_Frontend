@@ -259,6 +259,30 @@ export default function HomeScreen() {
             );
           })}
         </ScrollView>
+        {/* 6. Section: Browse Categories */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Browse Categories</Text>
+        </View>
+
+        <View style={styles.categoriesGrid}>
+          {CATEGORIES.map((cat) => (
+            <TouchableOpacity
+              key={cat.id}
+              style={styles.categoryItem}
+              activeOpacity={0.75}
+              onPress={() => cat.type === 'rentals' ? router.push('/rentals') : router.push({ pathname: '/marketplace', params: { category: cat.name } })}
+            >
+              <View style={styles.categoryIconBg}>
+                {cat.isMci ? (
+                  <MaterialCommunityIcons name={cat.icon} size={26} color="#2563EB" />
+                ) : (
+                  <Ionicons name={cat.icon} size={24} color="#2563EB" />
+                )}
+              </View>
+              <Text style={styles.categoryLabel}>{cat.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
