@@ -207,6 +207,13 @@ export default function HomeScreen() {
             );
           })}
         </ScrollView>
+        {/* 5. Section: Available Rentals Near You */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Available Rentals Near You</Text>
+          <TouchableOpacity onPress={() => router.push('/rentals')} activeOpacity={0.7}>
+            <Text style={styles.seeAllText}>See All</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
