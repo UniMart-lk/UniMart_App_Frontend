@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ScrollView, TouchableOpacity, TextInput, Image, RefreshControl } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
+import authService from '@/services/authService';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -68,11 +69,29 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [favorites, setFavorites] = useState({});
 
+  const displayName =
+    user?.userProfile?.fullName ||
+    user?.providerProfile?.displayName ||
+    user?.name ||
+    user?.email?.split('@')[0] ||
+    'Kasun';
+  const firstName = displayName.trim().split(' ')[0] || 'Kasun';
+  const roleLabel = isProvider ? 'Provider' : user?.userProfile?.userType === 'STUDENT' ? 'Student' : 'Buyer';
+  const avatarUrl = user?.userProfile?.profilePictureUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80';
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar style="dark" backgroundColor="#FFFFFF" />
-      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
-        <Text style={{ padding: 16 }}>UniMart Home</Text>
+            <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+        {/* 1. Header Section */}
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.greetingText}>
+              Hi, {firstName} <Text style={styles.waveEmoji}>👋</Text>
+            </Text>
+            <Text style={styles.roleSubtext}>{roleLabel}</Text>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
