@@ -5,6 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import authService from '@/services/authService';
 import marketplaceService from '@/services/marketplaceService';
+import { getRentalFeed } from '@/features/rentals/services/rentalService';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
