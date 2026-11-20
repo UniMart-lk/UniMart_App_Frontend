@@ -1,6 +1,6 @@
 import React from 'react';
-import ProfileScreen from '@/features/auth_profile/screens/profile/ProfileScreen';
+import HomeScreen from '@/features/home/screens/HomeScreen';
 
 export default function HomeRoute() {
-  return <ProfileScreen />;
+  return <HomeScreen />;
 }
