@@ -1,4 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { ScrollView, TouchableOpacity, TextInput, Image, RefreshControl } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -54,9 +58,22 @@ const CATEGORIES = [
 ];
 
 export default function HomeScreen() {
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [isProvider, setIsProvider] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeMode, setActiveMode] = useState('Buy');
+  const [marketplaceProducts, setMarketplaceProducts] = useState(INITIAL_MARKETPLACE);
+  const [rentalsList, setRentalsList] = useState(INITIAL_RENTALS);
+  const [refreshing, setRefreshing] = useState(false);
+  const [favorites, setFavorites] = useState({});
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <Text>UniMart Home</Text>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <StatusBar style="dark" backgroundColor="#FFFFFF" />
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+        <Text style={{ padding: 16 }}>UniMart Home</Text>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -64,3 +81,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFFFFF' }
 });
+
+styles.scrollContainer = { flex: 1, backgroundColor: '#F8FAFC' };
+styles.scrollContent = { paddingBottom: 15 };
