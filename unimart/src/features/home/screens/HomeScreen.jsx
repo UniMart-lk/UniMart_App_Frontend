@@ -16,84 +16,12 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import BottomNav from '@/components/BottomNav';
 import authService from '@/services/authService';
+import homeService from '@/services/homeService';
 import marketplaceService from '@/services/marketplaceService';
 import { getRentalFeed } from '@/features/rentals/services/rentalService';
 
 // Default / fallback items matching the UI screenshots
-const INITIAL_MARKETPLACE = [
-  {
-    id: '1',
-    title: 'Calculus Textbook',
-    price: 'Rs. 4,500',
-    numericPrice: 4500,
-    condition: 'Like New',
-    location: 'Engineering Block B',
-    providerType: 'student',
-    rating: '4.8',
-    images: ['https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&q=80'],
-  },
-  {
-    id: '2',
-    title: 'iPhone 11',
-    price: 'Rs. 95,000',
-    numericPrice: 95000,
-    condition: 'Good',
-    location: 'Engineering Block B',
-    providerType: 'student',
-    rating: '4.9',
-    images: ['https://images.unsplash.com/photo-1591337676887-a217a6970a8a?w=800&q=80'],
-  },
-  {
-    id: '3',
-    title: 'Scientific Calculator fx-991EX',
-    price: 'Rs. 6,500',
-    numericPrice: 6500,
-    condition: 'Like New',
-    location: 'Faculty of Science',
-    providerType: 'student',
-    rating: '4.7',
-    images: ['https://images.unsplash.com/photo-1611125832047-1d7ad1e8e48f?w=800&q=80'],
-  },
-];
 
-const INITIAL_RENTALS = [
-  {
-    id: 101,
-    title: 'Honda CB150R',
-    rentalPrice: 3500,
-    rentalPeriod: 'day',
-    primaryImageUrl: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=800&q=80',
-    location: 'Main Library · 450 m away',
-    availability: 'Available this week',
-    rating: 4.8,
-    reviewsCount: 32,
-    providerType: 'external',
-  },
-  {
-    id: 102,
-    title: 'Camping Tent',
-    rentalPrice: 1200,
-    rentalPeriod: 'day',
-    primaryImageUrl: 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&q=80',
-    location: 'Main Library · 500 m away',
-    availability: 'Available today',
-    rating: 4.9,
-    reviewsCount: 18,
-    providerType: 'student',
-  },
-  {
-    id: 103,
-    title: 'Sony Alpha A7 III Camera',
-    rentalPrice: 5000,
-    rentalPeriod: 'day',
-    primaryImageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80',
-    location: 'Technology Faculty · 800 m away',
-    availability: 'Available this week',
-    rating: 5.0,
-    reviewsCount: 14,
-    providerType: 'external',
-  },
-];
 
 const CATEGORIES = [
   { id: '1', name: 'Electronics', icon: 'laptop-outline', type: 'marketplace' },
@@ -113,8 +41,8 @@ export default function HomeScreen() {
   const [isProvider, setIsProvider] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeMode, setActiveMode] = useState('Buy'); // 'Buy', 'Rent', 'Vehicles', 'Equipment'
-  const [marketplaceProducts, setMarketplaceProducts] = useState(INITIAL_MARKETPLACE);
-  const [rentalsList, setRentalsList] = useState(INITIAL_RENTALS);
+  const [marketplaceProducts, setMarketplaceProducts] = useState([]);
+  const [rentalsList, setRentalsList] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [favorites, setFavorites] = useState({});
 
