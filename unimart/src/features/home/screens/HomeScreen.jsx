@@ -284,6 +284,28 @@ export default function HomeScreen() {
           ))}
         </View>
       </ScrollView>
+        {/* 7. Action Buttons (ONLY visible if user is a PROVIDER / ADMIN) */}
+      {isProvider && (
+        <View style={styles.providerActionContainer}>
+          <TouchableOpacity
+            style={styles.addProductBtn}
+            activeOpacity={0.85}
+            onPress={() => router.push('/postProduct')}
+          >
+            <Ionicons name="add" size={20} color="#FFFFFF" />
+            <Text style={styles.addProductBtnText}>Add Product</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.addRentalBtn}
+            activeOpacity={0.85}
+            onPress={() => router.push('/createRental')}
+          >
+            <Ionicons name="add" size={20} color="#2563EB" />
+            <Text style={styles.addRentalBtnText}>Add Rental</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
