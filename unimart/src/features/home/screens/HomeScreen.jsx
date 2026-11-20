@@ -118,6 +118,41 @@ export default function HomeScreen() {
             <Ionicons name="options-outline" size={20} color="#0F172A" />
           </TouchableOpacity>
         </View>
+        {/* 3. Quick Mode Filter Pills */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modePillsContainer}>
+          <TouchableOpacity
+            style={[styles.modePill, activeMode === 'Buy' ? styles.modePillActive : styles.modePillInactive]}
+            onPress={() => setActiveMode('Buy')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="bag-handle" size={16} color={activeMode === 'Buy' ? '#FFFFFF' : '#0F172A'} />
+            <Text style={[styles.modePillText, activeMode === 'Buy' && styles.modePillTextActive]}>Buy</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modePill, activeMode === 'Rent' ? styles.modePillActive : styles.modePillInactive]}
+            onPress={() => { setActiveMode('Rent'); router.push('/rentals'); }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="key" size={16} color={activeMode === 'Rent' ? '#FFFFFF' : '#0F172A'} />
+            <Text style={[styles.modePillText, activeMode === 'Rent' && styles.modePillTextActive]}>Rent</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modePill, activeMode === 'Vehicles' ? styles.modePillActive : styles.modePillInactive]}
+            onPress={() => { setActiveMode('Vehicles'); router.push('/rentals'); }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="car-sport" size={16} color={activeMode === 'Vehicles' ? '#FFFFFF' : '#0F172A'} />
+            <Text style={[styles.modePillText, activeMode === 'Vehicles' && styles.modePillTextActive]}>Vehicles</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modePill, activeMode === 'Equipment' ? styles.modePillActive : styles.modePillInactive]}
+            onPress={() => { setActiveMode('Equipment'); router.push('/rentals'); }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="construct" size={16} color={activeMode === 'Equipment' ? '#FFFFFF' : '#0F172A'} />
+            <Text style={[styles.modePillText, activeMode === 'Equipment' && styles.modePillTextActive]}>Equipment</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </ScrollView>
     </SafeAreaView>
   );
