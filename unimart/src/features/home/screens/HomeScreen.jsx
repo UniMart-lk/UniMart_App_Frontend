@@ -44,6 +44,8 @@ export default function HomeScreen() {
   const [marketplaceProducts, setMarketplaceProducts] = useState([]);
   const [rentalsList, setRentalsList] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [favorites, setFavorites] = useState({});
 
   const checkUserAndRole = useCallback(async () => {
