@@ -33,10 +33,10 @@ export default function LoginScreen({ navigation } = {}) {
 
   useEffect(() => {
     const checkAuthAndAccount = async () => {
-      // 1. If actively authenticated, go straight to marketplace
+      // 1. If actively authenticated, go straight to home
       const isAuth = await authService.isAuthenticated();
       if (isAuth) {
-        router.replace('/marketplace');
+        router.replace('/home');
         return;
       }
 
@@ -98,16 +98,16 @@ export default function LoginScreen({ navigation } = {}) {
       const result = await authService.login(trimmedEmail, password);
       console.log('Login successful! Logged in user:', result.user?.email);
 
-      // 3. Navigate to Marketplace (default home after login)
+      // 3. Navigate to Home (default landing screen)
       if (navigation?.replace) {
-        navigation.replace('marketplace');
+        navigation.replace('home');
       } else if (navigation?.navigate) {
-        navigation.navigate('marketplace');
+        navigation.navigate('home');
       } else {
         try {
-          router.replace('/marketplace');
+          router.replace('/home');
         } catch {
-          router.push('/marketplace');
+          router.push('/home');
         }
       }
     } catch (error) {

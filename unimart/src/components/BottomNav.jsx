@@ -19,7 +19,7 @@ export default function BottomNav({ activeTab = 'marketplace', setActiveTab }) {
 
   return (
     <View style={[styles.bottomNavContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      <TouchableOpacity style={styles.navItem} onPress={() => handleTabPress('home', '/marketplace')}>
+      <TouchableOpacity style={styles.navItem} onPress={() => handleTabPress('home', '/home')}>
         <View style={activeTab === 'home' ? styles.activeIconBg : styles.inactiveIconBg}>
           <Ionicons name="home-sharp" size={22} color={activeTab === 'home' ? '#2563EB' : '#64748B'} />
         </View>
