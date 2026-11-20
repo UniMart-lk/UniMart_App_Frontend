@@ -408,7 +408,7 @@ export default function HomeScreen() {
         >
           {rentalsList.map((rental) => {
             const isFav = !!favorites[`rental-${rental.id}`];
-            const priceLabel = `Rs. ${Number(rental.rentalPrice || 0).toLocaleString()}/${rental.rentalPeriod || 'day'}`;
+            const priceLabel = rental.priceFormatted || `Rs. ${Number(rental.rentalPrice || 0).toLocaleString()}/${rental.rentalPeriod || 'day'}`;
             const imgUrl =
               rental.primaryImageUrl ||
               'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=800&q=80';
