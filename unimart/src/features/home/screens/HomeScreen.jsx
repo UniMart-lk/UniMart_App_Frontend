@@ -103,6 +103,21 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        {/* 2. Search & Filter Bar */}
+        <View style={styles.searchBarContainer}>
+          <Ionicons name="search-outline" size={20} color="#64748B" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search products, rentals..."
+            placeholderTextColor="#94A3B8"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+          />
+          <TouchableOpacity style={styles.filterButton} onPress={() => router.push('/marketplace')} activeOpacity={0.7}>
+            <Ionicons name="options-outline" size={20} color="#0F172A" />
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
