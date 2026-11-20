@@ -160,6 +160,47 @@ export default function HomeScreen() {
             <Text style={styles.seeAllText}>See All</Text>
           </TouchableOpacity>
         </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCardsScroll}>
+          {marketplaceProducts.map((product) => {
+            const isFav = !!favorites[product.id];
+            return (
+              <TouchableOpacity
+                key={`market-${product.id}`}
+                style={styles.marketCard}
+                activeOpacity={0.85}
+                onPress={() => router.push({ pathname: '/productDetails', params: { id: product.id } })}
+              >
+                <View style={styles.cardImageContainer}>
+                  <Image source={{ uri: product.images[0] }} style={styles.cardImage} />
+                  <View style={styles.conditionBadge}>
+                    <Text style={styles.conditionBadgeText}>{product.condition}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.heartButton}
+                    onPress={() => setFavorites(f => ({ ...f, [product.id]: !f[product.id] }))}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={15} color={isFav ? '#EF4444' : '#0F172A'} />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.cardBody}>
+                  <Text style={styles.productTitle} numberOfLines={1}>{product.title}</Text>
+                  <Text style={styles.productPrice}>{product.price}</Text>
+                  <View style={styles.locationRow}>
+                    <Ionicons name="location-sharp" size={12} color="#64748B" style={{ marginRight: 3 }} />
+                    <Text style={styles.locationText} numberOfLines={1}>{product.location}</Text>
+                  </View>
+                  <View style={styles.providerPillRow}>
+                    <View style={styles.purpleBadgePill}>
+                      <Ionicons name="school" size={11} color="#FFFFFF" />
+                      <Ionicons name="storefront" size={11} color="#FFFFFF" style={{ marginLeft: 3 }} />
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </ScrollView>
     </SafeAreaView>
   );
