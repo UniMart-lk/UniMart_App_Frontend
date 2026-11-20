@@ -199,9 +199,11 @@ export default function HomeScreen() {
               onPress={() => router.push('/chat')}
             >
               <Ionicons name="notifications-outline" size={24} color="#0F172A" />
-              <View style={styles.notificationBadge}>
-                <Text style={styles.badgeText}>3</Text>
-              </View>
+              {unreadCount > 0 ? (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                </View>
+              ) : null}
             </TouchableOpacity>
 
             {/* Profile Avatar */}
