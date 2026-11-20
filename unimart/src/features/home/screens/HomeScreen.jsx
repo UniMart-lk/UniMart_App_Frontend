@@ -4,6 +4,7 @@ import { ScrollView, TouchableOpacity, TextInput, Image, RefreshControl } from '
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import authService from '@/services/authService';
+import marketplaceService from '@/services/marketplaceService';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -60,6 +61,11 @@ const CATEGORIES = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  useEffect(() => {
+    marketplaceService.getProducts().then(res => {
+      if (Array.isArray(res) && res.length > 0) setMarketplaceProducts(res.slice(0, 10));
+    }).catch(() => {});
+  }, []);
   const [user, setUser] = useState(null);
   const [isProvider, setIsProvider] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
