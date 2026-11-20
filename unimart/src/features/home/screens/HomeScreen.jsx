@@ -72,35 +72,32 @@ export default function HomeScreen() {
     }
   }, []);
 
-  const loadData = useCallback(async (isRefresh = false) => {
+    const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
-    try {
-      // 1. Fetch marketplace products
-      const productsData = await marketplaceService.getProducts().catch(() => null);
-      if (Array.isArray(productsData) && productsData.length > 0) {
-        setMarketplaceProducts(productsData.slice(0, 10));
-      }
+    else setLoading(true);
 
-      // 2. Fetch rental feed
-      const rentalFeed = await getRentalFeed({ limit: 10 }).catch(() => null);
-      if (rentalFeed?.rentals && Array.isArray(rentalFeed.rentals) && rentalFeed.rentals.length > 0) {
-        const formatted = rentalFeed.rentals.map((r) => ({
-          id: r.id,
-          title: r.title || 'Rental Item',
-          rentalPrice: r.rentalPrice || 0,
-          rentalPeriod: (r.rentalPeriod || 'day').toLowerCase(),
-          primaryImageUrl: r.primaryImageUrl || 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=800&q=80',
-          location: r.vehicle?.pickupLocationName || 'Campus Main Library',
-          availability: 'Available this week',
-          rating: 4.8,
-          reviewsCount: 24,
-          providerType: r.provider?.providerType === 'EXTERNAL_PROVIDER' ? 'external' : 'student',
-        }));
-        setRentalsList(formatted);
+    try {
+      // Fetch comprehensive aggregated home feed from backend API
+      const feed = await homeService.getHomeFeed({ limit: 10 });
+      if (feed) {
+        if (Array.isArray(feed.featuredMarketplace) && feed.featuredMarketplace.length > 0) {
+          setMarketplaceProducts(feed.featuredMarketplace);
+        }
+        if (Array.isArray(feed.featuredRentals) && feed.featuredRentals.length > 0) {
+          setRentalsList(feed.featuredRentals);
+        }
+        if (feed.userSummary) {
+          setUser(feed.userSummary);
+          setIsProvider(feed.userSummary.isProvider);
+          if (typeof feed.userSummary.unreadNotifications === 'number') {
+            setUnreadCount(feed.userSummary.unreadNotifications);
+          }
+        }
       }
     } catch (err) {
       console.log('Error loading HomeScreen data:', err.message);
     } finally {
+      setLoading(false);
       if (isRefresh) setRefreshing(false);
     }
   }, []);
