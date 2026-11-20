@@ -91,6 +91,17 @@ export default function HomeScreen() {
             </Text>
             <Text style={styles.roleSubtext}>{roleLabel}</Text>
           </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.bellButton} activeOpacity={0.7} onPress={() => router.push('/chat')}>
+              <Ionicons name="notifications-outline" size={24} color="#0F172A" />
+              <View style={styles.notificationBadge}>
+                <Text style={styles.badgeText}>3</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.avatarButton} activeOpacity={0.8} onPress={() => router.push('/profile')}>
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
