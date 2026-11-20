@@ -153,6 +153,13 @@ export default function HomeScreen() {
             <Text style={[styles.modePillText, activeMode === 'Equipment' && styles.modePillTextActive]}>Equipment</Text>
           </TouchableOpacity>
         </ScrollView>
+        {/* 4. Section: Featured Marketplace */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Featured Marketplace</Text>
+          <TouchableOpacity onPress={() => router.push('/marketplace')} activeOpacity={0.7}>
+            <Text style={styles.seeAllText}>See All</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
