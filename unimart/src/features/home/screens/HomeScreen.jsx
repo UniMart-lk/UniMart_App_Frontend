@@ -42,6 +42,17 @@ const INITIAL_RENTALS = [
   },
 ];
 
+const CATEGORIES = [
+  { id: '1', name: 'Electronics', icon: 'laptop-outline', type: 'marketplace' },
+  { id: '2', name: 'Books', icon: 'book-outline', type: 'marketplace' },
+  { id: '3', name: 'Furniture', icon: 'sofa', isMci: true, type: 'marketplace' },
+  { id: '4', name: 'Bicycles', icon: 'bicycle-outline', type: 'rentals' },
+  { id: '5', name: 'Clothing', icon: 'shirt-outline', type: 'marketplace' },
+  { id: '6', name: 'Academic', icon: 'school-outline', type: 'marketplace' },
+  { id: '7', name: 'Vehicles', icon: 'car-outline', type: 'rentals' },
+  { id: '8', name: 'Equipment', icon: 'construct-outline', type: 'rentals' },
+];
+
 export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
