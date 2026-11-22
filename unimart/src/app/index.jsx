@@ -21,8 +21,8 @@ export default function Index() {
         const storedUser = await authService.getStoredUser();
 
         if (isAuth && storedUser) {
-          // Direct entry to marketplace for logged in users
-          router.replace('/marketplace');
+          // Direct entry to home for logged in users
+          router.replace('/home');
           return;
         }
 

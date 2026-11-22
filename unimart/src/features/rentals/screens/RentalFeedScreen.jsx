@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Pressable } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { getRentalFeed } from '../services/rentalService';
 import RentalCard from '../components/RentalCard';
 import RentalMap from '../components/RentalMap';
@@ -30,6 +31,7 @@ const VIEW_OPTIONS = [
 
 export default function RentalFeedScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   const [rentals, setRentals] = useState([]);
   // 'list' (default) or 'map'; both views show the same loaded rentals
@@ -207,7 +209,19 @@ export default function RentalFeedScreen() {
     };
   }, []);
 
-  const renderItem = useCallback(({ item }) => <RentalCard item={item} />, []);
+  // Shared by the list cards and the map callouts. Only the id goes in the route; the details screen
+  // reads the rental from the feed data already loaded. Stable, so memoized cards and markers do not re-render.
+  const openRentalDetails = useCallback(
+    (rental) => {
+      router.push({ pathname: '/rentalDetails', params: { id: String(rental.id) } });
+    },
+    [router]
+  );
+
+  const renderItem = useCallback(
+    ({ item }) => <RentalCard item={item} onPress={openRentalDetails} />,
+    [openRentalDetails]
+  );
 
   const isMapView = viewMode === 'map';
 
@@ -312,7 +326,13 @@ export default function RentalFeedScreen() {
         />
         {/* Map of the rentals loaded so far; loading, error and refresh states stay shared with the list.
             Hidden (not unmounted) in List View, in the same place in the tree, so the native map keeps its camera. */}
-        {hasOpenedMap ? <RentalMap rentals={mapRentals} style={isMapView ? mapStyle : hiddenMapStyle} /> : null}
+        {hasOpenedMap ? (
+          <RentalMap
+            rentals={mapRentals}
+            onRentalPress={openRentalDetails}
+            style={isMapView ? mapStyle : hiddenMapStyle}
+          />
+        ) : null}
       </>
     );
   }

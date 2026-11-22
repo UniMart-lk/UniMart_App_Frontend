@@ -57,6 +57,13 @@ const authService = {
     await saveToken(token);
     if (user) {
       await saveUser(user);
+      const resolvedBadge =
+        user.role === 'PROVIDER'
+          ? user.providerProfile?.providerType || 'STUDENT_PROVIDER'
+          : user.userProfile?.userType === 'EXTERNAL'
+            ? 'EXTERNAL_PROVIDER'
+            : 'STUDENT';
+      await setProfileCompleted(Boolean(user.userProfile?.isCompleted), resolvedBadge);
     }
 
     // Mark account exists and onboarding completed so welcome screens are never shown again
@@ -138,6 +145,13 @@ const authService = {
     }
     if (user) {
       await saveUser(user);
+      const resolvedBadge =
+        user.role === 'PROVIDER'
+          ? user.providerProfile?.providerType || 'STUDENT_PROVIDER'
+          : user.userProfile?.userType === 'EXTERNAL'
+            ? 'EXTERNAL_PROVIDER'
+            : 'STUDENT';
+      await setProfileCompleted(Boolean(user.userProfile?.isCompleted), resolvedBadge);
     }
 
     // Mark account exists and onboarding completed so welcome screens are never shown again
