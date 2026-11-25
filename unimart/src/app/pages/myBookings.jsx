@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,15 @@ import {
   ScrollView,
   Alert,
   Platform,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useChat } from '@/features/chat/ChatContext';
+import bookingService from '@/services/bookingService';
 
 // UniMart Project Theme Colors
 const COLORS = {
@@ -228,6 +231,70 @@ const INITIAL_MY_LISTINGS = [
 const BOOKING_TABS = ['All', 'Active', 'Pending', 'Completed', 'Cancelled'];
 const LISTING_TABS = ['All', 'Active', 'Sold'];
 
+// Normalizes backend RentalBooking records to the screen's UI data format
+function normalizeBooking(b) {
+  if (!b) return null;
+  const listing = b.rentalListing || {};
+  const provider = listing.provider || {};
+  const start = new Date(b.startDate);
+  const end = new Date(b.endDate);
+
+  const formattedDates =
+    !isNaN(start.getTime()) && !isNaN(end.getTime())
+      ? `${start.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} - ${end.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`
+      : 'Dates scheduled';
+
+  const diffDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+  const duration = isNaN(diffDays) ? '1 Day' : `${diffDays} Day${diffDays > 1 ? 's' : ''}`;
+
+  return {
+    id: String(b.id),
+    bookingNumber: b.bookingNumber || `UB-2026-${b.id}`,
+    title: listing.title || b.title || 'Rental Item',
+    category: listing.itemType || b.category || 'Rental',
+    vehicleType: listing.vehicleDetail?.vehicleType || b.vehicleType || null,
+    image:
+      listing.primaryImageUrl ||
+      listing.images?.[0] ||
+      b.image ||
+      'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600&q=80',
+    startDate: b.startDate ? String(b.startDate).split('T')[0] : '2026-11-26',
+    endDate: b.endDate ? String(b.endDate).split('T')[0] : '2026-11-28',
+    formattedDates,
+    duration,
+    pricePerDay: Number(listing.rentalPrice || b.pricePerDay || b.totalPrice || 0),
+    totalPrice: Number(b.totalPrice || 0),
+    securityDeposit: Math.max(1500, Math.round(Number(b.totalPrice || 0) * 0.25)),
+    status: b.status || 'PENDING',
+    pickupLocation:
+      listing.pickupLocationName ||
+      listing.vehicleDetail?.pickupLocationName ||
+      b.pickupLocation ||
+      'Main Campus Gate, Sabaragamuwa University',
+    host: {
+      name: provider.displayName || provider.fullName || b.host?.name || 'Verified Campus Provider',
+      role: 'Verified Campus Provider',
+      phone: provider.contactNumber || b.host?.phone || '+94 77 123 4567',
+      rating: provider.rating ? `${provider.rating} ★` : (b.host?.rating || '4.9 ★'),
+      avatar:
+        provider.avatar ||
+        b.host?.avatar ||
+        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    },
+    pickupInstructions:
+      b.pickupInstructions ||
+      'Collect vehicle key/item at the campus security gate or designated pickup point. Please present your student ID card.',
+    paymentStatus:
+      b.status === 'ACCEPTED'
+        ? 'Paid / Confirmed'
+        : b.status === 'CANCELLED'
+        ? 'Cancelled / Slot Released'
+        : 'Pay on Pickup',
+    cancellationReason: b.cancellationReason || null,
+    userDetailsPdfUrl: b.userDetailsPdfUrl || null,
+  };
+}
+
 export default function MyBookingsScreen({
   onBack,
   onNavigate,
@@ -248,12 +315,51 @@ export default function MyBookingsScreen({
   // Data states
   const [bookings, setListingsData] = useState(INITIAL_BOOKINGS);
   const [myListings] = useState(INITIAL_MY_LISTINGS);
+  const [refreshing, setRefreshing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   // Modal states
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isCancelModalVisible, setIsCancelModalVisible] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState(null);
   const [cancelReason, setCancelReason] = useState('Change of plans');
+
+  // Load live bookings for pull-to-refresh
+  const loadMyBookings = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+
+    try {
+      const res = await bookingService.getMyBookings();
+      if (res.data?.bookings && Array.isArray(res.data.bookings) && res.data.bookings.length > 0) {
+        const normalized = res.data.bookings.map(normalizeBooking);
+        setListingsData(normalized);
+      }
+    } catch (err) {
+      console.warn('Could not fetch live bookings, keeping current list:', err?.message);
+    } finally {
+      if (isRefresh) setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    bookingService
+      .getMyBookings()
+      .then((res) => {
+        if (isMounted && res.data?.bookings && Array.isArray(res.data.bookings) && res.data.bookings.length > 0) {
+          const normalized = res.data.bookings.map(normalizeBooking);
+          setListingsData(normalized);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch live bookings, keeping current list:', err?.message);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Active bottom navigation item
   const [currentNav, setCurrentNav] = useState('Rentals');
@@ -385,31 +491,42 @@ export default function MyBookingsScreen({
     setIsCancelModalVisible(true);
   };
 
-  // Confirm Cancellation
-  const confirmCancel = () => {
+  // Confirm Cancellation via PATCH /api/bookings/:id/cancel
+  const confirmCancel = async () => {
     if (!bookingToCancel) return;
 
-    setListingsData((current) =>
-      current.map((item) =>
-        item.id === bookingToCancel.id
-          ? {
-              ...item,
-              status: 'CANCELLED',
-              cancellationReason: cancelReason,
-              paymentStatus: 'Refund Processing',
-            }
-          : item
-      )
-    );
+    setCancelling(true);
+    try {
+      await bookingService.cancelBooking(bookingToCancel.id, cancelReason);
 
-    setIsCancelModalVisible(false);
-    setSelectedBooking(null);
-    setBookingToCancel(null);
+      setListingsData((current) =>
+        current.map((item) =>
+          item.id === bookingToCancel.id
+            ? {
+                ...item,
+                status: 'CANCELLED',
+                cancellationReason: cancelReason,
+                paymentStatus: 'Cancelled / Slot Released',
+              }
+            : item
+        )
+      );
 
-    Alert.alert(
-      'Booking Cancelled',
-      `Booking #${bookingToCancel.bookingNumber} has been successfully cancelled. Any applicable refund will be processed to your account.`
-    );
+      setIsCancelModalVisible(false);
+      setSelectedBooking(null);
+      const bookingNum = bookingToCancel.bookingNumber;
+      setBookingToCancel(null);
+
+      Alert.alert(
+        'Booking Cancelled',
+        `Booking #${bookingNum} has been successfully cancelled. The reserved time slot has been immediately released for other students.`
+      );
+    } catch (error) {
+      console.error('Cancellation failed:', error);
+      Alert.alert('Cancellation Error', error.message || 'Could not cancel booking. Please try again.');
+    } finally {
+      setCancelling(false);
+    }
   };
 
   // Format status badge metadata
@@ -561,14 +678,16 @@ export default function MyBookingsScreen({
         </View>
 
         {/* Secondary Action Row for Cancel / Rebook */}
-        {item.status === 'PENDING' && (
+        {(item.status === 'PENDING' || item.status === 'ACCEPTED') && (
           <View style={styles.subActionRow}>
             <TouchableOpacity
               style={styles.cancelLink}
               onPress={() => initiateCancel(item)}
             >
               <Ionicons name="close-circle-outline" size={14} color={COLORS.danger} />
-              <Text style={styles.cancelLinkText}>Cancel Booking Request</Text>
+              <Text style={styles.cancelLinkText}>
+                {item.status === 'ACCEPTED' ? 'Cancel Active Reservation' : 'Cancel Booking Request'}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -847,10 +966,18 @@ export default function MyBookingsScreen({
         {activeSection === 'bookings' ? (
           <FlatList
             data={filteredBookings}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => String(item.id)}
             renderItem={renderBookingCard}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => loadMyBookings(true)}
+                colors={[COLORS.primary]}
+                tintColor={COLORS.primary}
+              />
+            }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <View style={styles.emptyIconCircle}>
@@ -1119,13 +1246,15 @@ export default function MyBookingsScreen({
                   </View>
 
                   {/* Action Button: Cancel Booking or Rent Again */}
-                  {selectedBooking.status === 'PENDING' && (
+                  {(selectedBooking.status === 'PENDING' || selectedBooking.status === 'ACCEPTED') && (
                     <TouchableOpacity
                       style={styles.cancelBookingBtn}
                       onPress={() => initiateCancel(selectedBooking)}
                     >
                       <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
-                      <Text style={styles.cancelBookingBtnText}>Cancel Booking</Text>
+                      <Text style={styles.cancelBookingBtnText}>
+                        {selectedBooking.status === 'ACCEPTED' ? 'Cancel Active Reservation' : 'Cancel Booking Request'}
+                      </Text>
                     </TouchableOpacity>
                   )}
 
@@ -1195,12 +1324,21 @@ export default function MyBookingsScreen({
               <TouchableOpacity
                 style={styles.cancelDismissBtn}
                 onPress={() => setIsCancelModalVisible(false)}
+                disabled={cancelling}
               >
                 <Text style={styles.cancelDismissBtnText}>Keep Booking</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.cancelConfirmBtn} onPress={confirmCancel}>
-                <Text style={styles.cancelConfirmBtnText}>Confirm Cancel</Text>
+              <TouchableOpacity
+                style={[styles.cancelConfirmBtn, cancelling && { opacity: 0.7 }]}
+                onPress={confirmCancel}
+                disabled={cancelling}
+              >
+                {cancelling ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.cancelConfirmBtnText}>Confirm Cancel</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
