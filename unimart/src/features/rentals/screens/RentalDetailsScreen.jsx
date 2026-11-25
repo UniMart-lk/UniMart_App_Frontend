@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
@@ -11,6 +11,7 @@ import { getLoadedRental, parseRentalId } from '../services/rentalService';
 import { formatRentalPrice, formatVehicleType, getValidImageUrl } from '../components/RentalCard';
 import RentalPickupMap from '../components/RentalPickupMap';
 import RentalAssetSummary from '../components/RentalAssetSummary';
+import BookRentalModal from '../components/BookRentalModal';
 import { getRentalDirectionsUrl } from '../utils/rentalDirections';
 
 const IMAGE_HEIGHT = 320;
@@ -65,6 +66,7 @@ export default function RentalDetailsScreen() {
 
   // Remember which image url failed, so a different rental or url tries again (same approach as RentalCard)
   const [failedImageUrl, setFailedImageUrl] = useState(null);
+  const [isBookModalVisible, setIsBookModalVisible] = useState(false);
   // True while a directions link is being opened, so rapid taps do not open Maps several times.
   // A ref, not state: it changes synchronously and needs no re-render or loading UI.
   const isOpeningDirections = useRef(false);
@@ -271,6 +273,34 @@ export default function RentalDetailsScreen() {
           ) : null}
         </View>
       </ScrollView>
+
+      {/* 3. FIXED BOTTOM BOOKING BAR */}
+      <View style={styles.bottomBar}>
+        <View style={styles.bottomBarPriceCol}>
+          <Text style={styles.bottomBarPriceLabel}>Rental Rate</Text>
+          <Text style={styles.bottomBarPriceValue} numberOfLines={1}>
+            {price || 'Contact for rate'}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.bookNowButton}
+          onPress={() => setIsBookModalVisible(true)}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Book this rental"
+        >
+          <Ionicons name="calendar" size={18} color="#FFFFFF" style={styles.bookNowIcon} />
+          <Text style={styles.bookNowButtonText}>Book Now</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 4. BOOK RENTAL MODAL */}
+      <BookRentalModal
+        visible={isBookModalVisible}
+        onClose={() => setIsBookModalVisible(false)}
+        rental={rental}
+      />
     </SafeAreaView>
   );
 }
@@ -281,7 +311,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   scrollContent: {
-    paddingBottom: 32,
+    paddingBottom: 90,
   },
 
   // --- IMAGE STYLES ---
@@ -532,5 +562,65 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#2563EB',
+  },
+
+  // --- FIXED BOTTOM BOOKING BAR STYLES ---
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 14,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  bottomBarPriceCol: {
+    flex: 1,
+    marginRight: 16,
+  },
+  bottomBarPriceLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  bottomBarPriceValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  bookNowButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 14,
+    minWidth: 140,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  bookNowIcon: {
+    marginRight: 8,
+  },
+  bookNowButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
