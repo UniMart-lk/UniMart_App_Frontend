@@ -22,10 +22,12 @@ class BookingService {
    * @param {Object} params - { rentalListingId, startDate, endDate }
    */
   async checkAvailability({ rentalListingId, startDate, endDate }) {
+    const listingIdStr = encodeURIComponent(String(rentalListingId));
     const startStr = encodeURIComponent(typeof startDate === 'string' ? startDate : startDate.toISOString());
     const endStr = encodeURIComponent(typeof endDate === 'string' ? endDate : endDate.toISOString());
     return await apiRequest(
-      `/bookings/check-availability?rentalListingId=${rentalListingId}&startDate=${startStr}&endDate=${endStr}`
+      `/bookings/check-availability?rentalListingId=${listingIdStr}&startDate=${startStr}&endDate=${endStr}`,
+      { method: 'GET' }
     );
   }
 

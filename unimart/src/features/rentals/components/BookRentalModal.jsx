@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -47,27 +47,74 @@ function formatDisplayDateTime(date) {
   });
 }
 
+function formatDurationChip(val, rentalPeriod) {
+  switch (rentalPeriod) {
+    case 'HOURLY':
+      return `${val} ${val === 1 ? 'hr' : 'hrs'}`;
+    case 'WEEKLY':
+      return `${val} ${val === 1 ? 'wk' : 'wks'}`;
+    case 'MONTHLY':
+      return `${val} ${val === 1 ? 'mo' : 'mos'}`;
+    case 'DAILY':
+    default:
+      return `${val} ${val === 1 ? 'day' : 'days'}`;
+  }
+}
+
+function interpretAvailabilityResponse(response) {
+  const payload = response?.data ?? response ?? {};
+  const conflicts = Array.isArray(payload.conflictingBookings)
+    ? payload.conflictingBookings
+    : [];
+  const explicitlyUnavailable =
+    payload.available === false ||
+    payload.isAvailable === false ||
+    payload.hasConflict === true ||
+    conflicts.length > 0;
+
+  return {
+    isAvailable: !explicitlyUnavailable,
+    message:
+      payload.message ||
+      (explicitlyUnavailable
+        ? 'This rental is already reserved for part of the selected time slot. Please choose another start date or duration.'
+        : 'Slot is available for your selected dates.'),
+    conflictingBookings: conflicts,
+  };
+}
+
 export default function BookRentalModal({ visible, onClose, rental, onBookingSuccess }) {
   const router = useRouter();
+  const rentalId = rental?.id ?? null;
 
   // Selected rental duration in units (default 1 unit of the listing's period)
   const [durationUnits, setDurationUnits] = useState(1);
   const [startOffsetDays, setStartOffsetDays] = useState(1); // 1 = Tomorrow
 
+  // Availability pre-check result scoped to a specific rangeKey
+  const [availabilityResult, setAvailabilityResult] = useState({
+    rangeKey: null,
+    status: 'idle',
+    title: null,
+    message: null,
+  });
+
   // Loading & error states
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
-  const [concurrencyConflict, setConcurrencyConflict] = useState(null);
   const [createdBooking, setCreatedBooking] = useState(null);
 
-  const resetModalState = () => {
+  const latestCheckIdRef = useRef(0);
+
+  const resetModalState = useCallback(() => {
+    latestCheckIdRef.current += 1;
     setDurationUnits(1);
     setStartOffsetDays(1);
+    setAvailabilityResult({ rangeKey: null, status: 'idle', title: null, message: null });
     setErrorMessage(null);
-    setConcurrencyConflict(null);
     setCreatedBooking(null);
     setSubmitting(false);
-  };
+  }, []);
 
   const handleClose = () => {
     resetModalState();
@@ -110,6 +157,110 @@ export default function BookRentalModal({ visible, onClose, rental, onBookingSuc
     return { startDate: start, endDate: end, durationLabel: label };
   }, [startOffsetDays, durationUnits, rentalPeriod]);
 
+  const currentRangeKey = useMemo(() => {
+    if (!rentalId) return null;
+    return `${rentalId}:${startDate.toISOString()}:${endDate.toISOString()}`;
+  }, [rentalId, startDate, endDate]);
+
+  // Derived availability status for the currently selected rangeKey
+  const isCurrentRangeMatched = Boolean(currentRangeKey && availabilityResult.rangeKey === currentRangeKey);
+  const availabilityStatus = !visible || !rentalId || createdBooking
+    ? 'idle'
+    : isCurrentRangeMatched
+      ? availabilityResult.status
+      : 'checking';
+
+  const availabilityMessage = isCurrentRangeMatched ? availabilityResult.message : null;
+  const concurrencyConflict =
+    availabilityStatus === 'unavailable'
+      ? {
+          title: availabilityResult.title || 'Date Slot Unavailable',
+          message:
+            availabilityResult.message ||
+            'Another student has already reserved this item for the selected dates. Please choose another date or duration.',
+        }
+      : null;
+
+  const runAvailabilityCheck = useCallback(async () => {
+    if (!rentalId || !currentRangeKey) return null;
+
+    const requestId = ++latestCheckIdRef.current;
+
+    try {
+      const response = await bookingService.checkAvailability({
+        rentalListingId: rentalId,
+        startDate,
+        endDate,
+      });
+
+      if (requestId !== latestCheckIdRef.current) return null;
+
+      const { isAvailable, message } = interpretAvailabilityResponse(response);
+
+      if (isAvailable) {
+        setAvailabilityResult({
+          rangeKey: currentRangeKey,
+          status: 'available',
+          title: null,
+          message,
+        });
+        return { status: 'available', message };
+      }
+
+      setAvailabilityResult({
+        rangeKey: currentRangeKey,
+        status: 'unavailable',
+        title: 'Date Slot Unavailable',
+        message,
+      });
+      return { status: 'unavailable', message };
+    } catch (error) {
+      if (requestId !== latestCheckIdRef.current) return null;
+
+      if (error?.status === 409 || error?.data?.code === 'CONCURRENCY_CONFLICT') {
+        const conflictMsg =
+          error.data?.message ||
+          error.message ||
+          'Another student has already reserved this item for the selected dates. Please choose another date or duration.';
+        setAvailabilityResult({
+          rangeKey: currentRangeKey,
+          status: 'unavailable',
+          title: 'Date Slot Unavailable (Conflict)',
+          message: conflictMsg,
+        });
+        return { status: 'unavailable', message: conflictMsg };
+      }
+
+      const errMsg =
+        error?.status === 401
+          ? 'Please login to your UniMart student account to verify live availability.'
+          : error?.message || 'Could not verify availability right now.';
+      setAvailabilityResult({
+        rangeKey: currentRangeKey,
+        status: 'error',
+        title: null,
+        message: errMsg,
+      });
+      return { status: 'error', message: errMsg, error };
+    }
+  }, [rentalId, startDate, endDate, currentRangeKey]);
+
+  // Pre-check availability automatically (debounced) whenever dates or duration change
+  useEffect(() => {
+    if (!visible || !rentalId || createdBooking) {
+      return undefined;
+    }
+
+    const timer = setTimeout(() => {
+      runAvailabilityCheck();
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+      latestCheckIdRef.current += 1;
+    };
+  }, [visible, rentalId, createdBooking, runAvailabilityCheck]);
+
   // Live Price Calculation
   const { subtotal, securityDeposit, totalPayable } = useMemo(() => {
     const sub = basePrice * durationUnits;
@@ -138,15 +289,26 @@ export default function BookRentalModal({ visible, onClose, rental, onBookingSuc
 
   // Handle Booking Submission
   const handleConfirmBooking = async () => {
-    if (!rental?.id) return;
+    if (!rentalId || submitting || availabilityStatus === 'unavailable') return;
 
     setSubmitting(true);
     setErrorMessage(null);
-    setConcurrencyConflict(null);
 
     try {
+      // Ensure availability is verified for the exact selected range before submitting
+      if (!isCurrentRangeMatched || availabilityResult.status !== 'available') {
+        const preCheck = await runAvailabilityCheck();
+        if (!preCheck || preCheck.status === 'unavailable') {
+          return;
+        }
+        if (preCheck.status === 'error' && preCheck.error?.status === 401) {
+          setErrorMessage('Please login to your UniMart student account to book rentals.');
+          return;
+        }
+      }
+
       const response = await bookingService.createBooking({
-        rentalListingId: rental.id,
+        rentalListingId: rentalId,
         startDate,
         endDate,
       });
@@ -162,7 +324,9 @@ export default function BookRentalModal({ visible, onClose, rental, onBookingSuc
 
       // --- 409 CONCURRENCY CONFLICT HANDLING ---
       if (error.status === 409 || error.data?.code === 'CONCURRENCY_CONFLICT') {
-        setConcurrencyConflict({
+        setAvailabilityResult({
+          rangeKey: currentRangeKey,
+          status: 'unavailable',
           title: 'Date Slot Unavailable (Conflict)',
           message:
             error.data?.message ||
@@ -188,6 +352,7 @@ export default function BookRentalModal({ visible, onClose, rental, onBookingSuc
       visible={visible}
       animationType="slide"
       transparent
+      onShow={resetModalState}
       onRequestClose={handleClose}
     >
       <View style={styles.modalOverlay}>
@@ -299,7 +464,6 @@ export default function BookRentalModal({ visible, onClose, rental, onBookingSuc
                       style={styles.conflictActionBtn}
                       onPress={() => {
                         setStartOffsetDays((prev) => prev + 1);
-                        setConcurrencyConflict(null);
                       }}
                     >
                       <Ionicons name="refresh" size={14} color={COLORS.danger} style={{ marginRight: 4 }} />
@@ -328,7 +492,6 @@ export default function BookRentalModal({ visible, onClose, rental, onBookingSuc
                       style={[styles.chip, isSelected && styles.chipActive]}
                       onPress={() => {
                         setStartOffsetDays(opt.offset);
-                        setConcurrencyConflict(null);
                       }}
                       activeOpacity={0.8}
                     >
@@ -360,12 +523,11 @@ export default function BookRentalModal({ visible, onClose, rental, onBookingSuc
                       style={[styles.chip, isSelected && styles.chipActive]}
                       onPress={() => {
                         setDurationUnits(val);
-                        setConcurrencyConflict(null);
                       }}
                       activeOpacity={0.8}
                     >
                       <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
-                        {val} {rentalPeriod === 'HOURLY' ? 'hr' : val === 1 ? 'day' : 'days'}
+                        {formatDurationChip(val, rentalPeriod)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -381,7 +543,6 @@ export default function BookRentalModal({ visible, onClose, rental, onBookingSuc
                     disabled={durationUnits <= 1}
                     onPress={() => {
                       setDurationUnits((prev) => Math.max(1, prev - 1));
-                      setConcurrencyConflict(null);
                     }}
                   >
                     <Ionicons name="remove" size={18} color={durationUnits <= 1 ? COLORS.textMuted : COLORS.text} />
@@ -394,7 +555,6 @@ export default function BookRentalModal({ visible, onClose, rental, onBookingSuc
                     disabled={durationUnits >= 30}
                     onPress={() => {
                       setDurationUnits((prev) => Math.min(30, prev + 1));
-                      setConcurrencyConflict(null);
                     }}
                   >
                     <Ionicons name="add" size={18} color={durationUnits >= 30 ? COLORS.textMuted : COLORS.text} />
@@ -406,6 +566,37 @@ export default function BookRentalModal({ visible, onClose, rental, onBookingSuc
                 <Ionicons name="time-outline" size={16} color={COLORS.primary} style={{ marginRight: 6 }} />
                 <Text style={styles.selectedDateText}>Return by: {formatDisplayDateTime(endDate)}</Text>
               </View>
+
+              {/* LIVE AVAILABILITY STATUS */}
+              {availabilityStatus === 'checking' && (
+                <View style={styles.availabilityCheckingBox}>
+                  <ActivityIndicator size="small" color={COLORS.primary} style={{ marginRight: 8 }} />
+                  <Text style={styles.availabilityCheckingText}>Checking live slot availability...</Text>
+                </View>
+              )}
+
+              {availabilityStatus === 'available' && (
+                <View style={styles.availabilitySuccessBox}>
+                  <Ionicons name="checkmark-circle" size={18} color={COLORS.success} style={{ marginRight: 8 }} />
+                  <Text style={styles.availabilitySuccessText}>
+                    {availabilityMessage || 'Slot is available for your selected dates.'}
+                  </Text>
+                </View>
+              )}
+
+              {availabilityStatus === 'error' && availabilityMessage ? (
+                <View style={styles.availabilityWarningBox}>
+                  <Ionicons name="alert-circle-outline" size={18} color={COLORS.warning} style={{ marginRight: 8 }} />
+                  <Text style={styles.availabilityWarningText}>{availabilityMessage}</Text>
+                  <TouchableOpacity
+                    style={styles.retryCheckBtn}
+                    onPress={runAvailabilityCheck}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.retryCheckBtnText}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
 
               {/* 3. LIVE PRICE CALCULATION CARD */}
               <Text style={styles.sectionHeading}>3. Price Breakdown</Text>
@@ -441,15 +632,29 @@ export default function BookRentalModal({ visible, onClose, rental, onBookingSuc
 
               {/* Booking Confirmation CTA */}
               <TouchableOpacity
-                style={[styles.confirmBtn, submitting && styles.confirmBtnDisabled]}
+                style={[
+                  styles.confirmBtn,
+                  (submitting || availabilityStatus === 'checking' || availabilityStatus === 'unavailable') &&
+                    styles.confirmBtnDisabled,
+                ]}
                 onPress={handleConfirmBooking}
-                disabled={submitting}
+                disabled={submitting || availabilityStatus === 'checking' || availabilityStatus === 'unavailable'}
                 activeOpacity={0.85}
               >
                 {submitting ? (
                   <View style={styles.btnLoadingRow}>
                     <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
                     <Text style={styles.confirmBtnText}>Securing Reservation...</Text>
+                  </View>
+                ) : availabilityStatus === 'checking' ? (
+                  <View style={styles.btnLoadingRow}>
+                    <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.confirmBtnText}>Checking Availability...</Text>
+                  </View>
+                ) : availabilityStatus === 'unavailable' ? (
+                  <View style={styles.btnRow}>
+                    <Ionicons name="close-circle" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.confirmBtnText}>Selected Slot Unavailable</Text>
                   </View>
                 ) : (
                   <View style={styles.btnRow}>
@@ -686,6 +891,71 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.text,
     fontWeight: '500',
+  },
+  availabilityCheckingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    marginBottom: 14,
+  },
+  availabilityCheckingText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  availabilitySuccessBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.successBg,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: COLORS.successBorder,
+    marginBottom: 14,
+  },
+  availabilitySuccessText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.success,
+  },
+  availabilityWarningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.warningBg,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: COLORS.warningBorder,
+    marginBottom: 14,
+  },
+  availabilityWarningText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#92400E',
+    marginRight: 8,
+  },
+  retryCheckBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: COLORS.warningBorder,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  retryCheckBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.warning,
   },
 
   // Stepper
